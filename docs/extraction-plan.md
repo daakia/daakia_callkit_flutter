@@ -133,6 +133,7 @@ secret: 0D16716AFADABE17F5A42C6642CF2711ED9F59F2C89C12B2
 
 Header note:
 - backend uses this `secret` header to identify which client credentials/configuration should be used
+- `platform` values must be exactly `android` or `ios`
 
 Current environment detail:
 - staging host observed: `https://stag-api.daakia.co.in`
@@ -252,6 +253,11 @@ Important note:
 - `config_name` supports APNs environment selection such as `stag` or `prod`
 - this is especially relevant for iOS sandbox vs production push credentials
 
+SDK rule for `config_name`:
+- Android: always send `prod`
+- iOS sandbox: send `stag`
+- iOS production: send `prod`
+
 Current response:
 
 ```json
@@ -295,6 +301,11 @@ Package implication:
 - support both strategies through an abstraction so host app can choose:
   - token-driven trigger
   - username-driven trigger
+
+SDK rule for `config_name`:
+- Android: always send `prod`
+- iOS sandbox: send `stag`
+- iOS production: send `prod`
 
 Current response:
 
