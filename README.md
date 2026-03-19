@@ -57,8 +57,36 @@ How lock-screen incoming call works on Android in this package:
 
 Current package state:
 - Dart-side VoIP bridge is present
-- native plugin-side PushKit/CallKit implementation still needs to be added
+- package now includes iOS plugin-side PushKit/CallKit bridge
 - backend `config_name` should be `stag` for sandbox and `prod` for production
+
+Required capabilities and settings in the host iOS app:
+- Push Notifications capability
+- Background Modes:
+  - `voip`
+  - `remote-notification`
+  - `audio`
+- APNs entitlement with correct environment
+
+Add these background modes to `Info.plist`:
+
+```xml
+<key>UIBackgroundModes</key>
+<array>
+  <string>remote-notification</string>
+  <string>voip</string>
+  <string>audio</string>
+</array>
+```
+
+Add APNs entitlement in your entitlements file:
+
+```xml
+<key>aps-environment</key>
+<string>development</string>
+```
+
+Use `production` for release provisioning when appropriate.
 
 ### Firestore setup
 
@@ -66,6 +94,7 @@ Firestore is optional.
 
 If enabled:
 - you can plug in a realtime `DaakiaCallStateStore`
+- package includes `DaakiaFirestoreCallStateStore` for Firestore-backed sync
 - caller/callee status sync becomes much better
 
 If disabled:
@@ -102,6 +131,18 @@ await sdk.startCallByUsername(
       'receiverId': 'target_user_id',
     },
   },
+);
+```
+
+Use Firestore for realtime call state:
+
+```dart
+final sdk = DaakiaCallkitFlutter(
+  config: const DaakiaCallkitConfig(
+    baseUrl: 'https://stag-api.daakia.co.in',
+    secret: 'your-shared-secret',
+  ),
+  callStateStore: DaakiaFirestoreCallStateStore(),
 );
 ```
 
@@ -160,7 +201,7 @@ Current status of the package:
 - local incoming call notification handling is available
 - default incoming call screen is available
 - FCM helper and VoIP bridge are available on Dart side
+- iOS plugin-side PushKit/CallKit bridge is included
 - backend call status API is still pending
-- native iOS PushKit/CallKit plugin code still needs to be added
 
 Firestore is optional. Without a realtime call-state store, signaling still works, but callers and callees lose realtime cancel/reject/missed/end synchronization. The package exposes an adapter interface for call-state storage so Firestore support can be plugged in without making it a hard dependency.

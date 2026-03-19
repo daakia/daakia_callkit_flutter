@@ -12,6 +12,7 @@ export 'src/models/daakia_push_result.dart';
 export 'src/models/daakia_voip_event.dart';
 export 'src/services/daakia_call_state_store.dart';
 export 'src/services/daakia_fcm_service.dart';
+export 'src/services/daakia_firestore_call_state_store.dart';
 export 'src/services/daakia_ios_voip_service.dart';
 export 'src/services/daakia_notification_service.dart';
 export 'src/services/daakia_ringtone_service.dart';
