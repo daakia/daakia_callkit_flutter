@@ -53,6 +53,49 @@ How lock-screen incoming call works on Android in this package:
 - your host app should open its incoming call UI when the notification action or payload is handled
 - the provided `DaakiaIncomingCallScreen` keeps the screen awake while visible with `wakelock_plus`
 
+Important for Android background / lock-screen delivery:
+- foreground handling alone is not enough
+- if you use FCM data messages for incoming calls, the host app must register a top-level `FirebaseMessaging.onBackgroundMessage(...)` handler
+- that background handler should initialize Firebase if needed, initialize `DaakiaNotificationService`, and call `showIncomingCallNotificationFromData(...)`
+- without this, incoming calls may work only while the app is foregrounded
+- this cannot be fully hidden by the package because `firebase_messaging` requires the background handler entrypoint to live in the host app
+
+Minimal Android background handler shape:
+
+```dart
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  }
+
+  if (message.data.isEmpty) return;
+
+  final notifications = DaakiaNotificationService();
+  await notifications.initialize();
+  await notifications.showIncomingCallNotificationFromData(
+    Map<String, dynamic>.from(message.data),
+  );
+}
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  runApp(const MyApp());
+}
+```
+
+For better UX after notification taps:
+- also handle `FirebaseMessaging.onMessageOpenedApp`
+- also check `FirebaseMessaging.instance.getInitialMessage()`
+
+Backend note:
+- Android background wake-up is much more reliable when the backend sends a high-priority FCM data message for `incoming_call`
+
 ### iOS setup
 
 Current package state:

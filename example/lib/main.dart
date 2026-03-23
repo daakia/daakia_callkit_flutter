@@ -12,9 +12,30 @@ import 'firebase_options.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  }
+
+  if (message.data.isEmpty) return;
+
+  final notifications = DaakiaNotificationService();
+  await notifications.initialize();
+  await notifications.showIncomingCallNotificationFromData(
+    Map<String, dynamic>.from(message.data),
+  );
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   FirebaseInitResult firebaseState = const FirebaseInitResult.notInitialized();
+
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
   try {
     await Firebase.initializeApp(
@@ -88,6 +109,7 @@ class _DemoHomePageState extends State<DemoHomePage> {
 
   DaakiaCallkitFlutter? _sdk;
   StreamSubscription<RemoteMessage>? _foregroundMessageSubscription;
+  StreamSubscription<RemoteMessage>? _messageOpenedAppSubscription;
   StreamSubscription<DaakiaVoipEvent>? _voipEventSubscription;
 
   @override
@@ -116,6 +138,7 @@ class _DemoHomePageState extends State<DemoHomePage> {
     _callerNameController.dispose();
     _phoneController.dispose();
     _foregroundMessageSubscription?.cancel();
+    _messageOpenedAppSubscription?.cancel();
     _voipEventSubscription?.cancel();
     super.dispose();
   }
@@ -189,6 +212,22 @@ class _DemoHomePageState extends State<DemoHomePage> {
       await sdk.notifications.showIncomingCallNotificationFromData(payload);
     });
 
+    await _messageOpenedAppSubscription?.cancel();
+    _messageOpenedAppSubscription = FirebaseMessaging.onMessageOpenedApp.listen(
+      (RemoteMessage message) async {
+        if (message.data.isEmpty) {
+          _appendLog('Opened app from push without data payload.');
+          return;
+        }
+
+        final payload = DaakiaIncomingCallPayload.fromMap(
+          Map<String, dynamic>.from(message.data),
+        );
+        _appendLog('Opened app from push for call ${payload.callId}');
+        await _openIncomingCallFromPayload(payload);
+      },
+    );
+
     await _voipEventSubscription?.cancel();
     _voipEventSubscription = sdk.voip.events.listen((DaakiaVoipEvent event) {
       _appendLog('VoIP event: ${event.method} ${jsonEncode(event.payload)}');
@@ -239,6 +278,17 @@ class _DemoHomePageState extends State<DemoHomePage> {
       },
     );
     await _bindIncomingHandlers(sdk);
+
+    final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+    if (initialMessage != null && initialMessage.data.isNotEmpty) {
+      final payload = DaakiaIncomingCallPayload.fromMap(
+        Map<String, dynamic>.from(initialMessage.data),
+      );
+      _appendLog('Launched from push for call ${payload.callId}');
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _openIncomingCallFromPayload(payload);
+      });
+    }
 
     _sdk = sdk;
     setState(() {
