@@ -1,8 +1,12 @@
+import 'dart:async';
 import 'dart:convert';
 
+import 'package:callkit/secret/secret_credential.dart';
 import 'package:daakia_callkit_flutter/daakia_callkit_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'firebase_options.dart';
 
@@ -79,16 +83,18 @@ class _DemoHomePageState extends State<DemoHomePage> {
   bool _firestoreEnabled = false;
   bool _sdkReady = false;
   String _log = '';
+  String? _latestFcmToken;
+  String? _latestVoipToken;
 
   DaakiaCallkitFlutter? _sdk;
+  StreamSubscription<RemoteMessage>? _foregroundMessageSubscription;
+  StreamSubscription<DaakiaVoipEvent>? _voipEventSubscription;
 
   @override
   void initState() {
     super.initState();
-    _baseUrlController = TextEditingController(
-      text: 'https://stag-api.daakia.co.in',
-    );
-    _secretController = TextEditingController();
+    _baseUrlController = TextEditingController(text: SecretCredential.baseUrl);
+    _secretController = TextEditingController(text: SecretCredential.secretKey);
     _currentUsernameController = TextEditingController();
     _targetUsernameController = TextEditingController();
     _directTokenController = TextEditingController();
@@ -109,6 +115,8 @@ class _DemoHomePageState extends State<DemoHomePage> {
     _callIdController.dispose();
     _callerNameController.dispose();
     _phoneController.dispose();
+    _foregroundMessageSubscription?.cancel();
+    _voipEventSubscription?.cancel();
     super.dispose();
   }
 
@@ -116,6 +124,19 @@ class _DemoHomePageState extends State<DemoHomePage> {
     setState(() {
       _log = '[${DateTime.now().toIso8601String()}] $value\n$_log';
     });
+  }
+
+  Future<void> _copyToken(String label, String? value) async {
+    if (value == null || value.isEmpty) {
+      _appendLog('$label is not available to copy.');
+      return;
+    }
+
+    await Clipboard.setData(ClipboardData(text: value));
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$label copied')));
   }
 
   DaakiaCallkitFlutter _buildSdk() {
@@ -153,6 +174,53 @@ class _DemoHomePageState extends State<DemoHomePage> {
     };
   }
 
+  Future<void> _bindIncomingHandlers(DaakiaCallkitFlutter sdk) async {
+    await _foregroundMessageSubscription?.cancel();
+    _foregroundMessageSubscription = FirebaseMessaging.onMessage.listen((
+      RemoteMessage message,
+    ) async {
+      if (message.data.isEmpty) {
+        _appendLog('Received foreground push without data payload.');
+        return;
+      }
+
+      final payload = Map<String, dynamic>.from(message.data);
+      _appendLog('Received foreground FCM payload: ${jsonEncode(payload)}');
+      await sdk.notifications.showIncomingCallNotificationFromData(payload);
+    });
+
+    await _voipEventSubscription?.cancel();
+    _voipEventSubscription = sdk.voip.events.listen((DaakiaVoipEvent event) {
+      _appendLog('VoIP event: ${event.method} ${jsonEncode(event.payload)}');
+    });
+  }
+
+  Future<void> _fetchFcmToken() async {
+    final sdk = _sdk;
+    if (sdk == null) {
+      _appendLog('Initialize SDK first.');
+      return;
+    }
+    if (!widget.firebaseState.initialized) {
+      _appendLog(
+        'Firebase is not initialized. Add GoogleService-Info.plist / google-services.json first.',
+      );
+      return;
+    }
+
+    final token = await sdk.fcm.getFcmToken();
+    setState(() {
+      _latestFcmToken = token;
+    });
+
+    if (token == null || token.isEmpty) {
+      _appendLog('FCM token is not available.');
+      return;
+    }
+
+    _appendLog('Fetched FCM token: $token');
+  }
+
   Future<void> _initializeSdk() async {
     if (_baseUrlController.text.trim().isEmpty ||
         _secretController.text.trim().isEmpty) {
@@ -170,6 +238,7 @@ class _DemoHomePageState extends State<DemoHomePage> {
         _appendLog('Rejected call ${payload.callId}');
       },
     );
+    await _bindIncomingHandlers(sdk);
 
     _sdk = sdk;
     setState(() {
@@ -189,10 +258,16 @@ class _DemoHomePageState extends State<DemoHomePage> {
 
     final token = await sdk.initializeVoip(
       onVoipTokenUpdated: (String token) async {
+        setState(() {
+          _latestVoipToken = token;
+        });
         _appendLog('VoIP token updated: $token');
       },
     );
 
+    setState(() {
+      _latestVoipToken = token;
+    });
     _appendLog('VoIP initialization finished. token=${token ?? 'null'}');
   }
 
@@ -218,6 +293,7 @@ class _DemoHomePageState extends State<DemoHomePage> {
       platform: Theme.of(context).platform == TargetPlatform.iOS
           ? DaakiaPlatform.ios
           : DaakiaPlatform.android,
+      voipToken: _latestVoipToken,
     );
 
     if (result == null) {
@@ -225,6 +301,10 @@ class _DemoHomePageState extends State<DemoHomePage> {
       return;
     }
 
+    setState(() {
+      _latestFcmToken = result.token;
+      _latestVoipToken = result.voipToken ?? _latestVoipToken;
+    });
     _appendLog('Registered FCM token for ${result.username}.');
   }
 
@@ -342,6 +422,18 @@ class _DemoHomePageState extends State<DemoHomePage> {
             firestoreEnabled: _firestoreEnabled,
           ),
           const SizedBox(height: 16),
+          _TokenCard(
+            label: 'Current FCM Token',
+            value: _latestFcmToken,
+            onCopy: () => _copyToken('FCM token', _latestFcmToken),
+          ),
+          const SizedBox(height: 12),
+          _TokenCard(
+            label: 'Current iOS VoIP Token',
+            value: _latestVoipToken,
+            onCopy: () => _copyToken('VoIP token', _latestVoipToken),
+          ),
+          const SizedBox(height: 16),
           TextField(
             controller: _baseUrlController,
             decoration: const InputDecoration(
@@ -390,7 +482,7 @@ class _DemoHomePageState extends State<DemoHomePage> {
           TextField(
             controller: _directTokenController,
             decoration: const InputDecoration(
-              labelText: 'Direct device token',
+              labelText: 'Direct device / VoIP token',
               border: OutlineInputBorder(),
             ),
           ),
@@ -430,6 +522,10 @@ class _DemoHomePageState extends State<DemoHomePage> {
               FilledButton(
                 onPressed: _initializeVoip,
                 child: const Text('Initialize VoIP'),
+              ),
+              FilledButton(
+                onPressed: _fetchFcmToken,
+                child: const Text('Fetch FCM Token'),
               ),
               FilledButton(
                 onPressed: _registerFcm,
@@ -509,6 +605,52 @@ class _StatusCard extends StatelessWidget {
                 style: const TextStyle(color: Colors.red),
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TokenCard extends StatelessWidget {
+  const _TokenCard({
+    required this.label,
+    required this.value,
+    required this.onCopy,
+  });
+
+  final String label;
+  final String? value;
+  final VoidCallback onCopy;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    label,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                IconButton(
+                  onPressed: onCopy,
+                  tooltip: 'Copy',
+                  icon: const Icon(Icons.copy_rounded),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            SelectableText(
+              value == null || value!.isEmpty ? 'Not available yet.' : value!,
+              style: const TextStyle(fontFamily: 'monospace'),
+            ),
           ],
         ),
       ),
