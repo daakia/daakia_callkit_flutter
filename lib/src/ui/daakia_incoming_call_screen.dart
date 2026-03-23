@@ -15,7 +15,7 @@ class DaakiaIncomingCallScreen extends StatefulWidget {
     this.onTimeout,
     this.timeout = const Duration(seconds: 30),
     this.ringtoneAssetPath = 'ringtone.mp3',
-    this.autoStartRinging = true,
+    this.autoStartRinging = false,
   });
 
   final DaakiaIncomingCallPayload payload;

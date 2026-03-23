@@ -1,5 +1,3 @@
-package example.android
-
 pluginManagement {
     val flutterSdkPath =
         run {
