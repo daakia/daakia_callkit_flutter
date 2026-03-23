@@ -131,3 +131,6 @@ ios/Runner/GoogleService-Info.plist
 macos/Runner/GoogleService-Info.plist
 firebase.json
 .firebaserc
+
+# SECRET
+secret/
