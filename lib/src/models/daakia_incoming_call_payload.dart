@@ -53,8 +53,11 @@ class DaakiaIncomingCallPayload {
 
   static Map<String, dynamic> _normalizeSource(Map<String, dynamic> source) {
     final nestedType = source['type'];
-    if (nestedType is Map) {
-      return Map<String, dynamic>.from(nestedType as Map<dynamic, dynamic>);
+    if (nestedType is Map &&
+        source['callId'] == null &&
+        source['sender'] == null &&
+        source['callerId'] == null) {
+      return Map<String, dynamic>.from(nestedType);
     }
     return Map<String, dynamic>.from(source);
   }

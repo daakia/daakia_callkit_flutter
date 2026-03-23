@@ -42,6 +42,7 @@ void main() {
             "saas_user_id": 38315,
             "username": "user_1",
             "token": "token_123",
+            "voip_token": "voip_123",
             "platform": "android"
           }
         }
@@ -63,7 +64,7 @@ void main() {
       username: 'user_1',
       token: 'token_123',
       platform: DaakiaPlatform.android,
-      additionalFields: const <String, dynamic>{'upcoming_token': 'todo'},
+      voipToken: 'voip_123',
     );
 
     expect(
@@ -73,10 +74,11 @@ void main() {
     expect(capturedHeaders['secret'], 'top-secret');
     expect(capturedBody, contains('"username":"user_1"'));
     expect(capturedBody, contains('"token":"token_123"'));
+    expect(capturedBody, contains('"voip_token":"voip_123"'));
     expect(capturedBody, contains('"platform":"android"'));
-    expect(capturedBody, contains('"upcoming_token":"todo"'));
     expect(result.username, 'user_1');
     expect(result.token, 'token_123');
+    expect(result.voipToken, 'voip_123');
   });
 
   test('startCallByUsername sends username-based trigger payload', () async {
@@ -127,31 +129,27 @@ void main() {
 
     final result = await sdk.startCallByUsername(
       username: 'user_2',
-      platform: DaakiaPlatform.android,
       title: 'Caller',
       message: 'Incoming call',
-      data: const <String, dynamic>{
-        'type': <String, dynamic>{'type': 'incoming_call', 'callId': 'abc'},
-      },
+      data: const <String, dynamic>{'type': 'incoming_call', 'callId': 'abc'},
     );
 
     expect(capturedBody, contains('"username":"user_2"'));
     expect(capturedBody, contains('"config_name":"prod"'));
+    expect(capturedBody, isNot(contains('"platform"')));
     expect(result.success, isTrue);
     expect(result.data['overall'], isA<Map<String, dynamic>>());
   });
 
-  test('incoming payload parser handles backend nested type object', () {
+  test('incoming payload parser handles direct payload with string sender', () {
     final payload = DaakiaIncomingCallPayload.fromMap(const <String, dynamic>{
-      'type': <String, dynamic>{
-        'type': 'incoming_call',
-        'callId': 'abc',
-        'sender': <String, dynamic>{'uid': 'caller_1', 'userName': 'Caller'},
-        'callerId': 'caller_1',
-        'receiverId': 'receiver_1',
-        'title': 'Caller',
-        'body': 'Incoming call',
-      },
+      'type': 'incoming_call',
+      'callId': 'abc',
+      'sender': '{"uid":"caller_1","userName":"Caller"}',
+      'callerId': 'caller_1',
+      'receiverId': 'receiver_1',
+      'title': 'Caller',
+      'body': 'Incoming call',
     });
 
     expect(payload.type, 'incoming_call');
@@ -159,4 +157,21 @@ void main() {
     expect(payload.sender.uid, 'caller_1');
     expect(payload.sender.userName, 'Caller');
   });
+
+  test(
+    'incoming payload parser still tolerates legacy nested type payload',
+    () {
+      final payload = DaakiaIncomingCallPayload.fromMap(const <String, dynamic>{
+        'type': <String, dynamic>{
+          'type': 'incoming_call',
+          'callId': 'legacy_abc',
+          'sender': <String, dynamic>{'uid': 'caller_2', 'userName': 'Legacy'},
+        },
+      });
+
+      expect(payload.type, 'incoming_call');
+      expect(payload.callId, 'legacy_abc');
+      expect(payload.sender.uid, 'caller_2');
+    },
+  );
 }

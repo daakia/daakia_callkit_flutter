@@ -5,6 +5,7 @@ class DaakiaDeviceTokenRecord {
     required this.username,
     required this.platform,
     required this.token,
+    this.voipToken,
   });
 
   final int id;
@@ -12,6 +13,7 @@ class DaakiaDeviceTokenRecord {
   final String username;
   final String platform;
   final String token;
+  final String? voipToken;
 
   factory DaakiaDeviceTokenRecord.fromJson(Map<String, dynamic> json) {
     return DaakiaDeviceTokenRecord(
@@ -20,6 +22,7 @@ class DaakiaDeviceTokenRecord {
       username: json['username']?.toString() ?? '',
       platform: json['platform']?.toString() ?? '',
       token: json['token']?.toString() ?? '',
+      voipToken: json['voip_token']?.toString(),
     );
   }
 }

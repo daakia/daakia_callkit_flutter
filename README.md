@@ -115,21 +115,20 @@ final sdk = DaakiaCallkitFlutter(
 await sdk.registerCurrentDevice(
   username: 'current_user_id',
   token: 'fcm_or_apns_token',
+  voipToken: 'optional_ios_voip_token',
   platform: DaakiaPlatform.android,
 );
 
 await sdk.startCallByUsername(
   username: 'target_user_id',
-  platform: DaakiaPlatform.android,
   title: 'Ashif Airtel',
   message: 'Incoming call',
   data: {
-    'type': {
-      'type': 'incoming_call',
-      'callId': 'abc123',
-      'callerId': 'current_user_id',
-      'receiverId': 'target_user_id',
-    },
+    'type': 'incoming_call',
+    'callId': 'meeting_uid_123',
+    'sender': '{"uid":"current_user_id","userName":"Ashif Airtel"}',
+    'callerId': 'current_user_id',
+    'receiverId': 'target_user_id',
   },
 );
 ```
@@ -152,6 +151,7 @@ Register current FCM token directly:
 await sdk.registerCurrentFcmDevice(
   username: 'current_user_id',
   platform: DaakiaPlatform.android,
+  voipToken: 'optional_ios_voip_token',
 );
 ```
 

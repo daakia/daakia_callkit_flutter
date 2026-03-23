@@ -37,7 +37,7 @@ class DaakiaBackendClient {
     final base = Uri.parse(_config.baseUrl);
     final normalizedPath = path.startsWith('/') ? path : '/$path';
     return base.replace(
-      path: '${base.path}${normalizedPath}'.replaceAll('//', '/'),
+      path: '${base.path}$normalizedPath'.replaceAll('//', '/'),
       queryParameters: queryParameters,
     );
   }
@@ -57,7 +57,7 @@ class DaakiaBackendClient {
     required String username,
     required String token,
     required DaakiaPlatform platform,
-    Map<String, dynamic> additionalFields = const <String, dynamic>{},
+    String? voipToken,
   }) async {
     final response = await _httpClient.post(
       _uri('/v2.0/saas/device-token/register'),
@@ -65,8 +65,8 @@ class DaakiaBackendClient {
       body: jsonEncode(<String, dynamic>{
         'username': username,
         'token': token,
+        'voip_token': voipToken,
         'platform': platform.value,
-        ...additionalFields,
       }),
     );
     final payload = await _decodeResponse(response);
@@ -118,7 +118,6 @@ class DaakiaBackendClient {
 
   Future<DaakiaPushResult> triggerNotificationByUsername({
     required String username,
-    required DaakiaPlatform platform,
     required String title,
     required String message,
     required String configName,
@@ -129,7 +128,6 @@ class DaakiaBackendClient {
       headers: _headers,
       body: jsonEncode(<String, dynamic>{
         'username': username,
-        'platform': platform.value,
         'title': title,
         'message': message,
         'config_name': configName,

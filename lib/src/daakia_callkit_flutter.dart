@@ -53,20 +53,20 @@ class DaakiaCallkitFlutter {
     required String username,
     required String token,
     required DaakiaPlatform platform,
-    Map<String, dynamic> additionalFields = const <String, dynamic>{},
+    String? voipToken,
   }) {
     return _backendClient.registerDeviceToken(
       username: username,
       token: token,
       platform: platform,
-      additionalFields: additionalFields,
+      voipToken: voipToken,
     );
   }
 
   Future<DaakiaDeviceTokenRecord?> registerCurrentFcmDevice({
     required String username,
     required DaakiaPlatform platform,
-    Map<String, dynamic> additionalFields = const <String, dynamic>{},
+    String? voipToken,
     bool requestApplePermission = true,
   }) async {
     final token = await fcm.getFcmToken(
@@ -78,7 +78,7 @@ class DaakiaCallkitFlutter {
       username: username,
       token: token,
       platform: platform,
-      additionalFields: additionalFields,
+      voipToken: voipToken,
     );
   }
 
@@ -115,21 +115,22 @@ class DaakiaCallkitFlutter {
 
   Future<DaakiaPushResult> startCallByUsername({
     required String username,
-    required DaakiaPlatform platform,
     required String title,
     required String message,
     required Map<String, dynamic> data,
+    String? configName,
     bool? isIosSandbox,
   }) {
     return _backendClient.triggerNotificationByUsername(
       username: username,
-      platform: platform,
       title: title,
       message: message,
-      configName: resolveConfigName(
-        platform: platform,
-        isIosSandbox: isIosSandbox,
-      ),
+      configName:
+          configName ??
+          resolveConfigName(
+            platform: DaakiaPlatform.ios,
+            isIosSandbox: isIosSandbox,
+          ),
       data: data,
     );
   }

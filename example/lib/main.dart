@@ -130,24 +130,22 @@ class _DemoHomePageState extends State<DemoHomePage> {
 
   Map<String, dynamic> _incomingPayloadMap() {
     return <String, dynamic>{
-      'type': <String, dynamic>{
-        'type': 'incoming_call',
-        'callId': _callIdController.text.trim(),
-        'sender': <String, dynamic>{
-          'uid': _currentUsernameController.text.trim(),
-          'phone': _phoneController.text.trim(),
-          'userName': _callerNameController.text.trim(),
-          'fcmToken': null,
-          'voipToken': null,
-          'createdAt': null,
-          'lastLogin': null,
-        },
-        'callerId': _currentUsernameController.text.trim(),
-        'receiverId': _targetUsernameController.text.trim(),
-        'callTimestamp': DateTime.now().toUtc().toIso8601String(),
-        'body': 'Incoming call',
-        'title': _callerNameController.text.trim(),
-      },
+      'type': 'incoming_call',
+      'callId': _callIdController.text.trim(),
+      'sender': jsonEncode(<String, dynamic>{
+        'uid': _currentUsernameController.text.trim(),
+        'phone': _phoneController.text.trim(),
+        'userName': _callerNameController.text.trim(),
+        'fcmToken': null,
+        'voipToken': null,
+        'createdAt': null,
+        'lastLogin': null,
+      }),
+      'callerId': _currentUsernameController.text.trim(),
+      'receiverId': _targetUsernameController.text.trim(),
+      'callTimestamp': DateTime.now().toUtc().toIso8601String(),
+      'body': 'Incoming call',
+      'title': _callerNameController.text.trim(),
     };
   }
 
@@ -239,9 +237,6 @@ class _DemoHomePageState extends State<DemoHomePage> {
 
     final result = await sdk.startCallByUsername(
       username: _targetUsernameController.text.trim(),
-      platform: Theme.of(context).platform == TargetPlatform.iOS
-          ? DaakiaPlatform.ios
-          : DaakiaPlatform.android,
       title: _callerNameController.text.trim(),
       message: 'Incoming call',
       data: _incomingPayloadMap(),
@@ -399,7 +394,7 @@ class _DemoHomePageState extends State<DemoHomePage> {
           TextField(
             controller: _callIdController,
             decoration: const InputDecoration(
-              labelText: 'Call ID',
+              labelText: 'Meeting UID / Call ID',
               border: OutlineInputBorder(),
             ),
           ),
