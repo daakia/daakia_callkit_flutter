@@ -133,6 +133,24 @@ await sdk.startCallByUsername(
 );
 ```
 
+Trigger directly by device token:
+
+```dart
+await sdk.startCallByToken(
+  token: 'device_token',
+  platform: DaakiaPlatform.ios,
+  title: 'Ashif Airtel',
+  message: 'Incoming call',
+  data: {
+    'type': 'incoming_call',
+    'callId': 'meeting_uid_123',
+    'sender': '{"uid":"current_user_id","userName":"Ashif Airtel"}',
+    'callerId': 'current_user_id',
+    'receiverId': 'target_user_id',
+  },
+);
+```
+
 Use Firestore for realtime call state:
 
 ```dart

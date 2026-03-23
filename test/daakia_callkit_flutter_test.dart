@@ -141,6 +141,62 @@ void main() {
     expect(result.data['overall'], isA<Map<String, dynamic>>());
   });
 
+  test('startCallByToken sends token-based trigger payload', () async {
+    late String capturedBody;
+
+    final mockClient = MockClient((http.Request request) async {
+      capturedBody = request.body;
+      return http.Response(
+        '''
+        {
+          "success": 1,
+          "message": "Push notification triggered",
+          "data": {
+            "token": "token_456",
+            "platform": "ios",
+            "config_name": "prod",
+            "sent": 1,
+            "failed": 0,
+            "errors": []
+          }
+        }
+        ''',
+        200,
+        headers: <String, String>{'content-type': 'application/json'},
+      );
+    });
+
+    final sdk = DaakiaCallkitFlutter(
+      config: const DaakiaCallkitConfig(
+        baseUrl: 'https://stag-api.daakia.co.in',
+        secret: 'top-secret',
+      ),
+      httpClient: mockClient,
+    );
+
+    final result = await sdk.startCallByToken(
+      token: 'token_456',
+      platform: DaakiaPlatform.ios,
+      title: 'Ashif Airtel',
+      message: 'Incoming call',
+      data: const <String, dynamic>{
+        'type': 'incoming_call',
+        'callId': 'meeting_uid_123',
+        'sender': '{"uid":"caller_1","userName":"Ashif Airtel"}',
+        'callerId': 'caller_1',
+        'receiverId': 'receiver_1',
+      },
+    );
+
+    expect(capturedBody, contains('"token":"token_456"'));
+    expect(capturedBody, contains('"platform":"ios"'));
+    expect(capturedBody, contains('"config_name":"prod"'));
+    expect(capturedBody, contains('"type":"incoming_call"'));
+    expect(capturedBody, contains('"callId":"meeting_uid_123"'));
+    expect(result.success, isTrue);
+    expect(result.data['sent'], 1);
+  });
+
   test('incoming payload parser handles direct payload with string sender', () {
     final payload = DaakiaIncomingCallPayload.fromMap(const <String, dynamic>{
       'type': 'incoming_call',
