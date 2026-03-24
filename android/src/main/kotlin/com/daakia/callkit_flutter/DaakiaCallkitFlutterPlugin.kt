@@ -11,14 +11,14 @@ class DaakiaCallkitFlutterPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
     companion object {
         private const val CHANNEL_NAME = "daakia_callkit_flutter/android_call"
 
-        private var channel: MethodChannel? = null
+        private var eventChannel: MethodChannel? = null
         private var applicationContext: Context? = null
         private val mainHandler = Handler(Looper.getMainLooper())
         private val pendingEvents = mutableListOf<Pair<String, Map<String, Any?>>>()
 
         fun emitEvent(method: String, payload: Map<String, Any?>) {
             val eventPayload = HashMap(payload)
-            val currentChannel = channel
+            val currentChannel = eventChannel
             if (currentChannel == null) {
                 pendingEvents.add(method to eventPayload)
                 return
@@ -32,16 +32,21 @@ class DaakiaCallkitFlutterPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
         fun appContext(): Context? = applicationContext
     }
 
+    private var instanceChannel: MethodChannel? = null
+
     override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         applicationContext = binding.applicationContext
-        channel = MethodChannel(binding.binaryMessenger, CHANNEL_NAME)
-        channel?.setMethodCallHandler(this)
-        flushPendingEvents()
+        instanceChannel = MethodChannel(binding.binaryMessenger, CHANNEL_NAME).also {
+            it.setMethodCallHandler(this)
+        }
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
-        channel?.setMethodCallHandler(null)
-        channel = null
+        if (eventChannel === instanceChannel) {
+            eventChannel = null
+        }
+        instanceChannel?.setMethodCallHandler(null)
+        instanceChannel = null
         applicationContext = null
     }
 
@@ -54,6 +59,7 @@ class DaakiaCallkitFlutterPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
 
         when (call.method) {
             "register" -> {
+                eventChannel = instanceChannel
                 flushPendingEvents()
                 result.success(null)
             }
@@ -82,7 +88,7 @@ class DaakiaCallkitFlutterPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
     }
 
     private fun flushPendingEvents() {
-        val currentChannel = channel ?: return
+        val currentChannel = eventChannel ?: return
         if (pendingEvents.isEmpty()) return
 
         val events = pendingEvents.toList()

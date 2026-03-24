@@ -25,17 +25,18 @@ import org.json.JSONObject
 
 class IncomingCallService : Service() {
     companion object {
-        private const val ACTION_SHOW = "com.daakia.callkit_flutter.action.SHOW"
-        private const val ACTION_ACCEPT = "com.daakia.callkit_flutter.action.ACCEPT"
-        private const val ACTION_DECLINE = "com.daakia.callkit_flutter.action.DECLINE"
-        private const val ACTION_END = "com.daakia.callkit_flutter.action.END"
-        private const val ACTION_CONNECTED = "com.daakia.callkit_flutter.action.CONNECTED"
-        private const val ACTION_TIMEOUT = "com.daakia.callkit_flutter.action.TIMEOUT"
+        const val ACTION_SHOW = "com.daakia.callkit_flutter.action.SHOW"
+        const val ACTION_ACCEPT = "com.daakia.callkit_flutter.action.ACCEPT"
+        const val ACTION_DECLINE = "com.daakia.callkit_flutter.action.DECLINE"
+        const val ACTION_END = "com.daakia.callkit_flutter.action.END"
+        const val ACTION_CONNECTED = "com.daakia.callkit_flutter.action.CONNECTED"
+        const val ACTION_TIMEOUT = "com.daakia.callkit_flutter.action.TIMEOUT"
+        const val ACTION_CLOSE_UI = "com.daakia.callkit_flutter.action.CLOSE_UI"
 
-        private const val EXTRA_PAYLOAD = "payload"
-        private const val EXTRA_CALL_ID = "callId"
-        private const val EXTRA_TIMEOUT_SECONDS = "timeoutSeconds"
-        private const val EXTRA_ACTION_SOURCE = "actionSource"
+        const val EXTRA_PAYLOAD = "payload"
+        const val EXTRA_CALL_ID = "callId"
+        const val EXTRA_TIMEOUT_SECONDS = "timeoutSeconds"
+        const val EXTRA_ACTION_SOURCE = "actionSource"
 
         private const val CALL_CHANNEL_ID = "daakia_call_channel_native_v2"
         private const val ACTION_SOURCE_ACCEPT = "accept"
@@ -56,7 +57,7 @@ class IncomingCallService : Service() {
                 action = ACTION_END
                 putExtra(EXTRA_CALL_ID, callId)
             }
-            ContextCompat.startForegroundService(context, intent)
+            context.startService(intent)
         }
 
         fun setCallConnected(context: Context, callId: String?) {
@@ -64,7 +65,7 @@ class IncomingCallService : Service() {
                 action = ACTION_CONNECTED
                 putExtra(EXTRA_CALL_ID, callId)
             }
-            ContextCompat.startForegroundService(context, intent)
+            context.startService(intent)
         }
     }
 
@@ -160,6 +161,7 @@ class IncomingCallService : Service() {
     private fun stopServiceState() {
         cancelTimeout()
         stopAlerting()
+        broadcastCloseUi()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
         activeCallId = null
@@ -240,7 +242,7 @@ class IncomingCallService : Service() {
             ?: "Incoming Call"
         val body = payload["body"]?.toString() ?: "Tap to answer"
 
-        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
+        val launchIntent = Intent(this, IncomingCallActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             putExtra(EXTRA_PAYLOAD, payloadJson)
             putExtra(EXTRA_ACTION_SOURCE, ACTION_SOURCE_INCOMING)
@@ -327,6 +329,14 @@ class IncomingCallService : Service() {
         launchIntent.putExtra(EXTRA_PAYLOAD, payloadJson)
         launchIntent.putExtra(EXTRA_ACTION_SOURCE, actionSource)
         startActivity(launchIntent)
+    }
+
+    private fun broadcastCloseUi() {
+        val intent = Intent(ACTION_CLOSE_UI).apply {
+            setPackage(packageName)
+            putExtra(EXTRA_CALL_ID, activeCallId)
+        }
+        sendBroadcast(intent)
     }
 
     private fun currentPayloadMap(): Map<String, Any?>? {

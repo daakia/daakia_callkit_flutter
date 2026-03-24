@@ -55,11 +55,17 @@ class DaakiaNotificationService {
     DaakiaIncomingCallHandler? onAcceptCall,
     DaakiaIncomingCallHandler? onRejectCall,
   }) async {
-    if (_initialized) return;
-
     _onIncomingCall = onIncomingCall;
     _onAcceptCall = onAcceptCall;
     _onRejectCall = onRejectCall;
+    if (_initialized) {
+      if (_hasAndroidEventHandlers) {
+        await DaakiaAndroidCallService().initialize(
+          onEvent: _handleAndroidCallEvent,
+        );
+      }
+      return;
+    }
 
     const AndroidInitializationSettings androidInit =
         AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -132,12 +138,20 @@ class DaakiaNotificationService {
       ),
     );
 
-    await DaakiaAndroidCallService().initialize(
-      onEvent: _handleAndroidCallEvent,
-    );
+    if (_hasAndroidEventHandlers) {
+      await DaakiaAndroidCallService().initialize(
+        onEvent: _handleAndroidCallEvent,
+      );
+    }
 
     _initialized = true;
   }
+
+  bool get _hasAndroidEventHandlers =>
+      Platform.isAndroid &&
+      (_onIncomingCall != null ||
+          _onAcceptCall != null ||
+          _onRejectCall != null);
 
   Future<void> handleNotificationResponse(
     NotificationResponse response, {
@@ -289,11 +303,9 @@ class DaakiaNotificationService {
 
     switch (method) {
       case 'incomingCall':
-        await _onIncomingCall?.call(callPayload);
         return;
       case 'callAccepted':
         await _onAcceptCall?.call(callPayload);
-        await DaakiaAndroidCallService().setCallConnected(callPayload.callId);
         return;
       case 'callDeclined':
         await _onRejectCall?.call(callPayload);
