@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../models/daakia_incoming_call_payload.dart';
+import 'daakia_android_call_service.dart';
 
 typedef DaakiaIncomingCallHandler =
     Future<void> Function(DaakiaIncomingCallPayload payload);
@@ -53,11 +55,17 @@ class DaakiaNotificationService {
     DaakiaIncomingCallHandler? onAcceptCall,
     DaakiaIncomingCallHandler? onRejectCall,
   }) async {
-    if (_initialized) return;
-
     _onIncomingCall = onIncomingCall;
     _onAcceptCall = onAcceptCall;
     _onRejectCall = onRejectCall;
+    if (_initialized) {
+      if (_hasAndroidEventHandlers) {
+        await DaakiaAndroidCallService().initialize(
+          onEvent: _handleAndroidCallEvent,
+        );
+      }
+      return;
+    }
 
     const AndroidInitializationSettings androidInit =
         AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -130,8 +138,20 @@ class DaakiaNotificationService {
       ),
     );
 
+    if (_hasAndroidEventHandlers) {
+      await DaakiaAndroidCallService().initialize(
+        onEvent: _handleAndroidCallEvent,
+      );
+    }
+
     _initialized = true;
   }
+
+  bool get _hasAndroidEventHandlers =>
+      Platform.isAndroid &&
+      (_onIncomingCall != null ||
+          _onAcceptCall != null ||
+          _onRejectCall != null);
 
   Future<void> handleNotificationResponse(
     NotificationResponse response, {
@@ -164,6 +184,11 @@ class DaakiaNotificationService {
   Future<void> showIncomingCallNotificationFromData(
     Map<String, dynamic> data,
   ) async {
+    if (Platform.isAndroid) {
+      await DaakiaAndroidCallService().showIncomingCall(data);
+      return;
+    }
+
     final AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
           _callChannelId,
@@ -225,6 +250,10 @@ class DaakiaNotificationService {
 
   Future<void> dismissIncomingCallNotification(String? callId) async {
     if (callId == null || callId.isEmpty) return;
+    if (Platform.isAndroid) {
+      await DaakiaAndroidCallService().endCall(callId);
+      return;
+    }
     await _localNotifications.cancel(callId.hashCode);
   }
 
@@ -264,5 +293,28 @@ class DaakiaNotificationService {
       return callId.hashCode;
     }
     return data.hashCode;
+  }
+
+  Future<void> _handleAndroidCallEvent(
+    String method,
+    Map<String, dynamic> payload,
+  ) async {
+    final callPayload = DaakiaIncomingCallPayload.fromMap(payload);
+
+    switch (method) {
+      case 'incomingCall':
+        return;
+      case 'callAccepted':
+        await _onAcceptCall?.call(callPayload);
+        return;
+      case 'callDeclined':
+        await _onRejectCall?.call(callPayload);
+        return;
+      case 'callEnded':
+        await DaakiaAndroidCallService().endCall(callPayload.callId);
+        return;
+      default:
+        return;
+    }
   }
 }

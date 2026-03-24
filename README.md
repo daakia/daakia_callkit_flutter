@@ -99,6 +99,11 @@ Backend note:
 - Android background wake-up is much more reliable when the backend sends a high-priority FCM data message for `incoming_call`
 - `flutter_local_notifications` can present a call-style full-screen notification, but it is still not identical to a native Android telecom/dialer integration; exact ringing behavior may vary by device/OEM
 
+OEM/device note:
+- some Android OEMs such as OnePlus, Xiaomi, Oppo, and Vivo can make lock-screen or background incoming-call behavior intermittent even when the package integration is correct
+- for these devices, ask users/testers to disable battery optimization for the app and allow background activity / auto-launch / lock-screen notifications where the ROM exposes those controls
+- if lock-screen incoming calls are inconsistent, verify notification permission is still granted and confirm the backend is sending `incoming_call` as a high-priority data-only FCM payload
+
 ### iOS setup
 
 Current package state:
