@@ -4,14 +4,19 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.RippleDrawable
 import android.graphics.Typeface
 import android.os.Build
 import android.os.Bundle
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
-import android.widget.Button
+import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -63,88 +68,231 @@ class IncomingCallActivity : AppCompatActivity() {
     }
 
     private fun buildContent(payloadJson: String, payload: Map<String, Any?>): LinearLayout {
-        val callerName = payload["title"]?.toString()
-            ?: payload["callerName"]?.toString()
+        val callerName = resolveCallerName(payload)
+        val title = payload["title"]?.toString()
             ?: "Incoming Call"
         val body = payload["body"]?.toString() ?: "Respond to join or decline the call"
+        val initial = callerName.firstOrNull()?.uppercase() ?: "?"
 
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setBackgroundColor(Color.parseColor("#10151D"))
+            gravity = Gravity.CENTER_HORIZONTAL
+            background = GradientDrawable(
+                GradientDrawable.Orientation.TOP_BOTTOM,
+                intArrayOf(
+                    Color.parseColor("#121212"),
+                    Color.parseColor("#0A2A43")
+                )
+            )
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
-            setPadding(48, 96, 48, 96)
+            setPadding(dp(24), dp(32), dp(24), dp(24))
 
-            addView(TextView(context).apply {
-                text = callerName
-                textSize = 30f
-                setTypeface(typeface, Typeface.BOLD)
-                setTextColor(Color.WHITE)
-                gravity = Gravity.CENTER
+            addView(spacer(1f))
+
+            addView(FrameLayout(context).apply {
+                layoutParams = LinearLayout.LayoutParams(dp(128), dp(128))
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(Color.parseColor("#455A64"))
+                    setStroke(dp(2), Color.parseColor("#3DFFFFFF"))
+                }
+                elevation = dp(6).toFloat()
+
+                addView(TextView(context).apply {
+                    text = initial
+                    textSize = 44f
+                    setTypeface(typeface, Typeface.BOLD)
+                    setTextColor(Color.WHITE)
+                    gravity = Gravity.CENTER
+                    layoutParams = FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT
+                    )
+                })
             })
 
             addView(TextView(context).apply {
-                text = body
-                textSize = 16f
-                setTextColor(Color.parseColor("#B7C1CC"))
+                text = callerName
+                textSize = 32f
+                setTypeface(typeface, Typeface.BOLD)
+                setTextColor(Color.WHITE)
                 gravity = Gravity.CENTER
                 val params = LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT
                 )
-                params.topMargin = 32
+                params.topMargin = dp(24)
+                layoutParams = params
+            })
+
+            addView(TextView(context).apply {
+                text = title
+                textSize = 16f
+                setTypeface(typeface, Typeface.BOLD)
+                setTextColor(Color.parseColor("#B3FFFFFF"))
+                gravity = Gravity.CENTER
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    cornerRadius = dp(20).toFloat()
+                    setColor(Color.parseColor("#1FFFFFFF"))
+                }
+                setPadding(dp(16), dp(8), dp(16), dp(8))
+                val params = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+                params.topMargin = dp(10)
+                layoutParams = params
+            })
+
+            addView(spacer(1f))
+
+            addView(TextView(context).apply {
+                text = body
+                textSize = 14f
+                setTextColor(Color.parseColor("#99FFFFFF"))
+                gravity = Gravity.CENTER
+                val params = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+                params.bottomMargin = dp(20)
                 layoutParams = params
             })
 
             addView(LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
                 gravity = Gravity.CENTER
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+
+                addView(buildActionColumn(
+                    label = "Decline",
+                    backgroundColor = Color.parseColor("#E53935"),
+                    iconRes = android.R.drawable.ic_menu_close_clear_cancel
+                ) {
+                    startService(
+                        Intent(context, IncomingCallService::class.java).apply {
+                            action = IncomingCallService.ACTION_DECLINE
+                        }
+                    )
+                    finish()
+                })
+
+                addView(buildActionColumn(
+                    label = "Accept",
+                    backgroundColor = Color.parseColor("#43A047"),
+                    iconRes = android.R.drawable.sym_action_call
+                ) {
+                    startService(
+                        Intent(context, IncomingCallService::class.java).apply {
+                            action = IncomingCallService.ACTION_ACCEPT
+                            putExtra(IncomingCallService.EXTRA_PAYLOAD, payloadJson)
+                        }
+                    )
+                    finish()
+                })
+            })
+
+            addView(View(context).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    dp(8)
+                )
+            })
+        }
+    }
+
+    private fun buildActionColumn(
+        label: String,
+        backgroundColor: Int,
+        iconRes: Int,
+        onClick: () -> Unit
+    ): LinearLayout {
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(
+                0,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                1f
+            )
+
+            addView(FrameLayout(context).apply {
+                layoutParams = LinearLayout.LayoutParams(dp(56), dp(56))
+                val shapeDrawable = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(backgroundColor)
+                }
+                background = RippleDrawable(
+                    ColorStateList.valueOf(Color.parseColor("#33FFFFFF")),
+                    shapeDrawable,
+                    null
+                )
+                elevation = dp(6).toFloat()
+                isClickable = true
+                isFocusable = true
+                setOnClickListener { onClick() }
+
+                addView(ImageView(context).apply {
+                    setImageResource(iconRes)
+                    setColorFilter(Color.WHITE)
+                    layoutParams = FrameLayout.LayoutParams(
+                        dp(24),
+                        dp(24),
+                        Gravity.CENTER
+                    )
+                })
+            })
+
+            addView(TextView(context).apply {
+                text = label
+                textSize = 14f
+                setTextColor(Color.parseColor("#B3FFFFFF"))
+                gravity = Gravity.CENTER
                 val params = LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT
                 )
-                params.topMargin = 72
+                params.topMargin = dp(10)
                 layoutParams = params
-
-                addView(Button(context).apply {
-                    text = "Decline"
-                    setBackgroundColor(Color.parseColor("#D14343"))
-                    setTextColor(Color.WHITE)
-                    setOnClickListener {
-                        startService(
-                            Intent(context, IncomingCallService::class.java).apply {
-                                action = IncomingCallService.ACTION_DECLINE
-                            }
-                        )
-                        finish()
-                    }
-                })
-
-                addView(Button(context).apply {
-                    text = "Accept"
-                    setBackgroundColor(Color.parseColor("#2E9E58"))
-                    setTextColor(Color.WHITE)
-                    val buttonParams = LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.WRAP_CONTENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT
-                    )
-                    buttonParams.marginStart = 32
-                    layoutParams = buttonParams
-                    setOnClickListener {
-                        startService(
-                            Intent(context, IncomingCallService::class.java).apply {
-                                action = IncomingCallService.ACTION_ACCEPT
-                                putExtra(IncomingCallService.EXTRA_PAYLOAD, payloadJson)
-                            }
-                        )
-                        finish()
-                    }
-                })
             })
         }
+    }
+
+    private fun resolveCallerName(payload: Map<String, Any?>): String {
+        val senderValue = payload["sender"]
+        if (senderValue is String && senderValue.isNotBlank()) {
+            runCatching {
+                val senderJson = JSONObject(senderValue)
+                val senderName = senderJson.optString("userName")
+                if (senderName.isNotBlank()) {
+                    return senderName
+                }
+            }
+        }
+        return payload["callerName"]?.toString()
+            ?: payload["title"]?.toString()
+            ?: "Unknown"
+    }
+
+    private fun spacer(weight: Float): View {
+        return View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                0,
+                weight
+            )
+        }
+    }
+
+    private fun dp(value: Int): Int {
+        return (value * resources.displayMetrics.density).toInt()
     }
 
     private fun showOverLockScreen() {
