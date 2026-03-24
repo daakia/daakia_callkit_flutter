@@ -1,4 +1,4 @@
-package com.daakia.callkit.example.example
+package com.daakia.callkit.example
 
 import io.flutter.embedding.android.FlutterActivity
 
