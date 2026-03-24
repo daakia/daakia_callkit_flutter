@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -38,7 +39,7 @@ class _DaakiaIncomingCallScreenState extends State<DaakiaIncomingCallScreen> {
   void initState() {
     super.initState();
     unawaited(WakelockPlus.enable());
-    if (widget.autoStartRinging) {
+    if (widget.autoStartRinging && !Platform.isAndroid) {
       unawaited(
         DaakiaRingtoneService().startRinging(
           assetPath: widget.ringtoneAssetPath,

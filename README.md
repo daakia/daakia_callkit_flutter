@@ -52,6 +52,8 @@ How lock-screen incoming call works on Android in this package:
 - Android uses that as the call alert entry point
 - your host app should open its incoming call UI when the notification action or payload is handled
 - the provided `DaakiaIncomingCallScreen` keeps the screen awake while visible with `wakelock_plus`
+- Android call notifications in the package use the system ringtone URI by default instead of a bundled custom ringtone asset
+- the package-provided incoming call screen does not auto-start a custom ringtone on Android by default
 
 Important for Android background / lock-screen delivery:
 - foreground handling alone is not enough
@@ -95,6 +97,7 @@ For better UX after notification taps:
 
 Backend note:
 - Android background wake-up is much more reliable when the backend sends a high-priority FCM data message for `incoming_call`
+- `flutter_local_notifications` can present a call-style full-screen notification, but it is still not identical to a native Android telecom/dialer integration; exact ringing behavior may vary by device/OEM
 
 ### iOS setup
 

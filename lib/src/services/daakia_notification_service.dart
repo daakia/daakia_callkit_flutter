@@ -36,9 +36,11 @@ class DaakiaNotificationService {
   DaakiaIncomingCallHandler? _onRejectCall;
 
   static const String _defaultChannelId = 'daakia_default_channel';
-  static const String _callChannelId = 'daakia_call_channel';
+  static const String _callChannelId = 'daakia_call_channel_system_ringtone';
   static const String _acceptCallActionId = 'accept_call';
   static const String _rejectCallActionId = 'reject_call';
+  static const UriAndroidNotificationSound _androidSystemRingtoneSound =
+      UriAndroidNotificationSound('content://settings/system/ringtone');
   static final Int64List _callVibrationPattern = Int64List.fromList(<int>[
     0,
     700,
@@ -122,6 +124,7 @@ class DaakiaNotificationService {
         description: 'Incoming call notifications',
         importance: Importance.max,
         playSound: true,
+        sound: _androidSystemRingtoneSound,
         enableVibration: true,
         vibrationPattern: _callVibrationPattern,
       ),
@@ -172,6 +175,8 @@ class DaakiaNotificationService {
           category: AndroidNotificationCategory.call,
           visibility: NotificationVisibility.public,
           playSound: true,
+          sound: _androidSystemRingtoneSound,
+          audioAttributesUsage: AudioAttributesUsage.notificationRingtone,
           enableVibration: true,
           vibrationPattern: _callVibrationPattern,
           ongoing: true,
