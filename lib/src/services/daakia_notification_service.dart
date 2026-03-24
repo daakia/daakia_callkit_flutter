@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../models/daakia_incoming_call_payload.dart';
+import 'daakia_android_call_service.dart';
 
 typedef DaakiaIncomingCallHandler =
     Future<void> Function(DaakiaIncomingCallPayload payload);
@@ -130,6 +132,10 @@ class DaakiaNotificationService {
       ),
     );
 
+    await DaakiaAndroidCallService().initialize(
+      onEvent: _handleAndroidCallEvent,
+    );
+
     _initialized = true;
   }
 
@@ -164,6 +170,11 @@ class DaakiaNotificationService {
   Future<void> showIncomingCallNotificationFromData(
     Map<String, dynamic> data,
   ) async {
+    if (Platform.isAndroid) {
+      await DaakiaAndroidCallService().showIncomingCall(data);
+      return;
+    }
+
     final AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
           _callChannelId,
@@ -225,6 +236,10 @@ class DaakiaNotificationService {
 
   Future<void> dismissIncomingCallNotification(String? callId) async {
     if (callId == null || callId.isEmpty) return;
+    if (Platform.isAndroid) {
+      await DaakiaAndroidCallService().endCall(callId);
+      return;
+    }
     await _localNotifications.cancel(callId.hashCode);
   }
 
@@ -264,5 +279,30 @@ class DaakiaNotificationService {
       return callId.hashCode;
     }
     return data.hashCode;
+  }
+
+  Future<void> _handleAndroidCallEvent(
+    String method,
+    Map<String, dynamic> payload,
+  ) async {
+    final callPayload = DaakiaIncomingCallPayload.fromMap(payload);
+
+    switch (method) {
+      case 'incomingCall':
+        await _onIncomingCall?.call(callPayload);
+        return;
+      case 'callAccepted':
+        await _onAcceptCall?.call(callPayload);
+        await DaakiaAndroidCallService().setCallConnected(callPayload.callId);
+        return;
+      case 'callDeclined':
+        await _onRejectCall?.call(callPayload);
+        return;
+      case 'callEnded':
+        await DaakiaAndroidCallService().endCall(callPayload.callId);
+        return;
+      default:
+        return;
+    }
   }
 }
