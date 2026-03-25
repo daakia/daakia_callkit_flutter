@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:callkit/secret/secret_credential.dart';
 import 'package:daakia_callkit_flutter/daakia_callkit_flutter.dart';
@@ -298,6 +299,22 @@ class _DemoHomePageState extends State<DemoHomePage> {
     _appendLog('Fetched FCM token: $token');
   }
 
+  Future<void> _requestAndroidNotificationPermission() async {
+    if (!Platform.isAndroid) return;
+    if (!widget.firebaseState.initialized) return;
+
+    final settings = await FirebaseMessaging.instance.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    _appendLog(
+      'Android notification permission: '
+      '${settings.authorizationStatus.name}',
+    );
+  }
+
   Future<void> _initializeSdk() async {
     if (_baseUrlController.text.trim().isEmpty ||
         _secretController.text.trim().isEmpty) {
@@ -306,6 +323,7 @@ class _DemoHomePageState extends State<DemoHomePage> {
     }
 
     final sdk = _buildSdk();
+    await _requestAndroidNotificationPermission();
     await sdk.initialize(
       onIncomingCall: _openIncomingCallFromPayload,
       onCallEvent: _handleCallEvent,
