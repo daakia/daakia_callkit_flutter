@@ -155,6 +155,48 @@ If disabled:
 
 ## Usage
 
+Preferred integration pattern:
+
+```dart
+final sdk = DaakiaCallkitFlutter(
+  config: const DaakiaCallkitConfig(
+    baseUrl: 'https://stag-api.daakia.co.in',
+    secret: 'your-shared-secret',
+  ),
+);
+
+await sdk.initialize(
+  onIncomingCall: (payload) async {
+    // Open your incoming-call UI if your app needs a Flutter screen.
+  },
+  onCallEvent: (event) async {
+    switch (event.type) {
+      case DaakiaCallEventType.incoming:
+        break;
+      case DaakiaCallEventType.accepted:
+        break;
+      case DaakiaCallEventType.declined:
+        break;
+      case DaakiaCallEventType.ended:
+        break;
+      case DaakiaCallEventType.timedOut:
+        break;
+      case DaakiaCallEventType.unknown:
+        break;
+    }
+  },
+);
+```
+
+Notes:
+- `sdk.initialize(...)` is the recommended app-facing setup entrypoint
+- `event.type` is the preferred typed lifecycle signal
+- `event.call` gives you the parsed `DaakiaIncomingCallPayload`
+- `event.platform` is available if you need platform-specific behavior
+- older lower-level APIs such as `sdk.events`, `sdk.voip.events`, and `sdk.notifications.initialize(...)` are still available for backward compatibility
+
+Basic setup and backend calls:
+
 ```dart
 final sdk = DaakiaCallkitFlutter(
   config: const DaakiaCallkitConfig(
@@ -224,25 +266,29 @@ await sdk.registerCurrentFcmDevice(
 );
 ```
 
-Show a full-screen incoming call notification from backend payload:
+Initialize iOS VoIP token registration:
+
+```dart
+await sdk.initializeVoip(
+  onVoipTokenUpdated: (token) async {
+    // Save or register the updated VoIP token.
+  },
+);
+```
+
+If you need the lower-level notification setup explicitly:
 
 ```dart
 await sdk.notifications.initialize(
   onIncomingCall: (payload) async {
     // Open your incoming call UI here.
   },
-  onAcceptCall: (payload) async {
-    // Accept flow.
-  },
-  onRejectCall: (payload) async {
-    // Reject flow.
-  },
 );
 
 await sdk.notifications.showIncomingCallNotificationFromData(payloadMap);
 ```
 
-Use the package-provided incoming call screen:
+Use the package-provided Flutter incoming call screen:
 
 ```dart
 Navigator.of(context).push(
