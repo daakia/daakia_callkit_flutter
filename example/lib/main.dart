@@ -315,6 +315,52 @@ class _DemoHomePageState extends State<DemoHomePage> {
     );
   }
 
+  Future<void> _ensureAndroidFullScreenIntentAccess(
+    DaakiaCallkitFlutter sdk,
+  ) async {
+    if (!Platform.isAndroid) return;
+
+    final canUseFullScreenIntent =
+        await sdk.notifications.canUseFullScreenIntent();
+    _appendLog(
+      'Android full-screen intent access: '
+      '${canUseFullScreenIntent ? 'allowed' : 'disabled'}',
+    );
+    if (canUseFullScreenIntent || !mounted) return;
+
+    final openSettings = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Enable Full-Screen Calls'),
+          content: const Text(
+            'Lock-screen incoming call UI may not appear until full-screen '
+            'notifications are enabled for this app.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Later'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Open Settings'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (openSettings == true) {
+      final opened = await sdk.notifications.openFullScreenIntentSettings();
+      _appendLog(
+        opened
+            ? 'Opened full-screen intent settings.'
+            : 'Could not open full-screen intent settings.',
+      );
+    }
+  }
+
   Future<void> _initializeSdk() async {
     if (_baseUrlController.text.trim().isEmpty ||
         _secretController.text.trim().isEmpty) {
@@ -328,6 +374,7 @@ class _DemoHomePageState extends State<DemoHomePage> {
       onIncomingCall: _openIncomingCallFromPayload,
       onCallEvent: _handleCallEvent,
     );
+    await _ensureAndroidFullScreenIntentAccess(sdk);
     await _bindIncomingHandlers(sdk);
 
     final initialMessage = await FirebaseMessaging.instance.getInitialMessage();

@@ -297,6 +297,14 @@ class DaakiaNotificationService {
     );
   }
 
+  Future<bool> canUseFullScreenIntent() {
+    return DaakiaAndroidCallService().canUseFullScreenIntent();
+  }
+
+  Future<bool> openFullScreenIntentSettings() {
+    return DaakiaAndroidCallService().openFullScreenIntentSettings();
+  }
+
   int _callNotificationIdFromData(Map<String, dynamic> data) {
     final callId = data['callId']?.toString();
     if (callId != null && callId.isNotEmpty) {

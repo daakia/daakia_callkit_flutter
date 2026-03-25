@@ -1,8 +1,13 @@
 package com.daakia.callkit_flutter
 
+import android.app.NotificationManager
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -83,8 +88,37 @@ class DaakiaCallkitFlutterPlugin : FlutterPlugin, MethodChannel.MethodCallHandle
                 IncomingCallService.setCallConnected(context, callId)
                 result.success(null)
             }
+            "canUseFullScreenIntent" -> {
+                result.success(canUseFullScreenIntent(context))
+            }
+            "openFullScreenIntentSettings" -> {
+                result.success(openFullScreenIntentSettings(context))
+            }
             else -> result.notImplemented()
         }
+    }
+
+    private fun canUseFullScreenIntent(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            return true
+        }
+        val notificationManager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        return notificationManager.canUseFullScreenIntent()
+    }
+
+    private fun openFullScreenIntentSettings(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            return false
+        }
+        val intent = Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT).apply {
+            data = Uri.parse("package:${context.packageName}")
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        return runCatching {
+            context.startActivity(intent)
+            true
+        }.getOrElse { false }
     }
 
     private fun flushPendingEvents() {
