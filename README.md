@@ -21,7 +21,7 @@ Current backend-backed MVP requires:
 
 Notes:
 - Android always uses `config_name: prod`
-- iOS sandbox uses `config_name: stag`
+- iOS sandbox uses `config_name: dev`
 - iOS production uses `config_name: prod`
 - backend call status API is still pending, so status sync to backend is not implemented yet
 
@@ -109,7 +109,7 @@ OEM/device note:
 Current package state:
 - Dart-side VoIP bridge is present
 - package now includes iOS plugin-side PushKit/CallKit bridge
-- backend `config_name` should be `stag` for sandbox and `prod` for production
+- backend `config_name` should be `dev` for sandbox and `prod` for production
 
 Required capabilities and settings in the host iOS app:
 - Push Notifications capability

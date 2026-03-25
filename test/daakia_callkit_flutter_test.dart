@@ -15,7 +15,7 @@ void main() {
     expect(sdk.resolveConfigName(platform: DaakiaPlatform.android), 'prod');
     expect(
       sdk.resolveConfigName(platform: DaakiaPlatform.ios, isIosSandbox: true),
-      'stag',
+      'dev',
     );
     expect(
       sdk.resolveConfigName(platform: DaakiaPlatform.ios, isIosSandbox: false),
