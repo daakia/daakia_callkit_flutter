@@ -95,6 +95,12 @@ For better UX after notification taps:
 - also handle `FirebaseMessaging.onMessageOpenedApp`
 - also check `FirebaseMessaging.instance.getInitialMessage()`
 
+Android 14+ full-screen intent note:
+- a manifest declaration alone is not always enough for lock-screen full-screen incoming call UI
+- on Android 14 and newer, full-screen intent access can be disabled in system settings for the app
+- the package exposes helpers through `sdk.notifications.canUseFullScreenIntent()` and `sdk.notifications.openFullScreenIntentSettings()`
+- if full-screen intent access is disabled, the app should explain the requirement and route the user to settings
+
 Backend note:
 - Android background wake-up is much more reliable when the backend sends a high-priority FCM data message for `incoming_call`
 - `flutter_local_notifications` can present a call-style full-screen notification, but it is still not identical to a native Android telecom/dialer integration; exact ringing behavior may vary by device/OEM
@@ -194,6 +200,15 @@ Notes:
 - `event.call` gives you the parsed `DaakiaIncomingCallPayload`
 - `event.platform` is available if you need platform-specific behavior
 - older lower-level APIs such as `sdk.events`, `sdk.voip.events`, and `sdk.notifications.initialize(...)` are still available for backward compatibility
+
+Example Android 14+ check:
+
+```dart
+if (Platform.isAndroid &&
+    !await sdk.notifications.canUseFullScreenIntent()) {
+  await sdk.notifications.openFullScreenIntentSettings();
+}
+```
 
 Basic setup and backend calls:
 
