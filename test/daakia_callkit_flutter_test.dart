@@ -23,6 +23,27 @@ void main() {
     );
   });
 
+  test('call event maps voip event into iOS platform event', () {
+    final event = DaakiaCallEvent.fromVoipEvent(
+      const DaakiaVoipEvent(
+        method: 'callAccepted',
+        payload: <String, dynamic>{
+          'type': 'incoming_call',
+          'callId': 'call_1',
+          'sender': '{"uid":"caller_1","userName":"Caller"}',
+          'callerId': 'caller_1',
+          'receiverId': 'receiver_1',
+        },
+      ),
+    );
+
+    expect(event.method, 'callAccepted');
+    expect(event.platform, DaakiaPlatform.ios);
+    expect(event.type, DaakiaCallEventType.accepted);
+    expect(event.call.callId, 'call_1');
+    expect(event.call.sender.userName, 'Caller');
+  });
+
   test('registerCurrentDevice sends expected request payload', () async {
     late Uri capturedUri;
     late Map<String, String> capturedHeaders;

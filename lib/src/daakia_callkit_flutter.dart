@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:http/http.dart' as http;
 
+import 'models/daakia_call_event.dart';
 import 'models/daakia_call_session.dart';
 import 'models/daakia_call_status.dart';
 import 'models/daakia_callkit_config.dart';
@@ -12,6 +15,8 @@ import 'services/daakia_fcm_service.dart';
 import 'services/daakia_ios_voip_service.dart';
 import 'services/daakia_notification_service.dart';
 import 'services/daakia_ringtone_service.dart';
+
+typedef DaakiaCallEventHandler = FutureOr<void> Function(DaakiaCallEvent event);
 
 class DaakiaCallkitFlutter {
   DaakiaCallkitFlutter({
@@ -28,6 +33,7 @@ class DaakiaCallkitFlutter {
   final DaakiaCallkitConfig _config;
   final DaakiaCallStateStore? _callStateStore;
   final DaakiaBackendClient _backendClient;
+  StreamSubscription<DaakiaCallEvent>? _callEventSubscription;
 
   DaakiaFcmService get fcm => DaakiaFcmService();
 
@@ -37,7 +43,71 @@ class DaakiaCallkitFlutter {
 
   DaakiaRingtoneService get ringtone => DaakiaRingtoneService();
 
+  Stream<DaakiaCallEvent> get events => Stream<DaakiaCallEvent>.multi((
+    StreamController<DaakiaCallEvent> controller,
+  ) {
+    final notificationSubscription = notifications.events.listen(
+      controller.add,
+      onError: controller.addError,
+    );
+    final voipSubscription = voip.events
+        .map(DaakiaCallEvent.fromVoipEvent)
+        .listen(
+          controller.add,
+          onError: controller.addError,
+        );
+
+    controller.onCancel = () async {
+      await notificationSubscription.cancel();
+      await voipSubscription.cancel();
+    };
+  });
+
   bool get supportsRealtimeCallState => _callStateStore != null;
+
+  Future<void> initialize({
+    DaakiaIncomingCallHandler? onIncomingCall,
+    DaakiaCallEventHandler? onCallEvent,
+    DaakiaIncomingCallHandler? onCallAccepted,
+    DaakiaIncomingCallHandler? onCallDeclined,
+    DaakiaIncomingCallHandler? onCallEnded,
+    DaakiaIncomingCallHandler? onCallTimedOut,
+  }) async {
+    await notifications.initialize(
+      onIncomingCall: onIncomingCall,
+    );
+
+    await _callEventSubscription?.cancel();
+    if (onCallEvent == null &&
+        onCallAccepted == null &&
+        onCallDeclined == null &&
+        onCallEnded == null &&
+        onCallTimedOut == null) {
+      return;
+    }
+
+    _callEventSubscription = events.listen((DaakiaCallEvent event) async {
+      await onCallEvent?.call(event);
+
+      switch (event.type) {
+        case DaakiaCallEventType.accepted:
+          await onCallAccepted?.call(event.call);
+          return;
+        case DaakiaCallEventType.declined:
+          await onCallDeclined?.call(event.call);
+          return;
+        case DaakiaCallEventType.ended:
+          await onCallEnded?.call(event.call);
+          return;
+        case DaakiaCallEventType.timedOut:
+          await onCallTimedOut?.call(event.call);
+          return;
+        case DaakiaCallEventType.incoming:
+        case DaakiaCallEventType.unknown:
+          return;
+      }
+    });
+  }
 
   String resolveConfigName({
     required DaakiaPlatform platform,

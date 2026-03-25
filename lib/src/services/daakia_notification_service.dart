@@ -1,11 +1,14 @@
 import 'dart:convert';
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
+import '../models/daakia_call_event.dart';
 import '../models/daakia_incoming_call_payload.dart';
+import '../models/daakia_platform.dart';
 import 'daakia_android_call_service.dart';
 
 typedef DaakiaIncomingCallHandler =
@@ -31,6 +34,8 @@ class DaakiaNotificationService {
 
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
+  final StreamController<DaakiaCallEvent> _events =
+      StreamController<DaakiaCallEvent>.broadcast();
 
   bool _initialized = false;
   DaakiaIncomingCallHandler? _onIncomingCall;
@@ -49,6 +54,8 @@ class DaakiaNotificationService {
     500,
     900,
   ]);
+
+  Stream<DaakiaCallEvent> get events => _events.stream;
 
   Future<void> initialize({
     DaakiaIncomingCallHandler? onIncomingCall,
@@ -164,17 +171,20 @@ class DaakiaNotificationService {
     final actionId = response.actionId;
 
     if (actionId == _rejectCallActionId) {
+      _emitEvent('callDeclined', source);
       await _onRejectCall?.call(payload);
       await dismissIncomingCallNotification(payload.callId);
       return;
     }
 
     if (actionId == _acceptCallActionId) {
+      _emitEvent('callAccepted', source);
       await _onAcceptCall?.call(payload);
       await dismissIncomingCallNotification(payload.callId);
       return;
     }
 
+    _emitEvent('incomingCall', source);
     await _onIncomingCall?.call(payload);
     if (!fromBackground) {
       await dismissIncomingCallNotification(payload.callId);
@@ -299,6 +309,7 @@ class DaakiaNotificationService {
     String method,
     Map<String, dynamic> payload,
   ) async {
+    _emitEvent(method, payload);
     final callPayload = DaakiaIncomingCallPayload.fromMap(payload);
 
     switch (method) {
@@ -316,5 +327,15 @@ class DaakiaNotificationService {
       default:
         return;
     }
+  }
+
+  void _emitEvent(String method, Map<String, dynamic> payload) {
+    _events.add(
+      DaakiaCallEvent(
+        method: method,
+        payload: payload,
+        platform: Platform.isIOS ? DaakiaPlatform.ios : DaakiaPlatform.android,
+      ),
+    );
   }
 }
