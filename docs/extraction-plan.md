@@ -136,7 +136,7 @@ Header note:
 - `platform` values must be exactly `android` or `ios`
 
 Current environment detail:
-- staging host observed: `https://stag-api.daakia.co.in`
+- backend base URL should come from team-provided environment/secret configuration
 
 ### 1. Register device token
 

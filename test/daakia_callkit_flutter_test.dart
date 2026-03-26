@@ -8,7 +8,7 @@ import 'package:daakia_callkit_flutter/src/services/daakia_backend_client.dart';
 void main() {
   test('resolves config_name by platform and iOS environment', () {
     const config = DaakiaCallkitConfig(
-      baseUrl: 'https://stag-api.daakia.co.in',
+      baseUrl: 'https://api.example.com',
       secret: 'secret',
     );
     final sdk = DaakiaCallkitFlutter(config: config);
@@ -76,7 +76,7 @@ void main() {
 
     final sdk = DaakiaCallkitFlutter(
       config: const DaakiaCallkitConfig(
-        baseUrl: 'https://stag-api.daakia.co.in',
+        baseUrl: 'https://api.example.com',
         secret: 'top-secret',
       ),
       httpClient: mockClient,
@@ -120,7 +120,7 @@ void main() {
 
     final sdk = DaakiaCallkitFlutter(
       config: const DaakiaCallkitConfig(
-        baseUrl: 'https://stag-api.daakia.co.in',
+        baseUrl: 'https://api.example.com',
         secret: 'top-secret',
       ),
       httpClient: mockClient,
@@ -160,7 +160,7 @@ void main() {
 
     final sdk = DaakiaCallkitFlutter(
       config: const DaakiaCallkitConfig(
-        baseUrl: 'https://stag-api.daakia.co.in',
+        baseUrl: 'https://api.example.com',
         secret: 'top-secret',
       ),
       httpClient: mockClient,
@@ -199,7 +199,7 @@ void main() {
 
     final sdk = DaakiaCallkitFlutter(
       config: const DaakiaCallkitConfig(
-        baseUrl: 'https://stag-api.daakia.co.in',
+        baseUrl: 'https://api.example.com',
         secret: 'top-secret',
       ),
       httpClient: mockClient,
@@ -260,7 +260,7 @@ void main() {
 
     final sdk = DaakiaCallkitFlutter(
       config: const DaakiaCallkitConfig(
-        baseUrl: 'https://stag-api.daakia.co.in',
+        baseUrl: 'https://api.example.com',
         secret: 'top-secret',
       ),
       httpClient: mockClient,
@@ -297,7 +297,7 @@ void main() {
 
     final sdk = DaakiaCallkitFlutter(
       config: const DaakiaCallkitConfig(
-        baseUrl: 'https://stag-api.daakia.co.in',
+        baseUrl: 'https://api.example.com',
         secret: 'top-secret',
       ),
       httpClient: mockClient,
@@ -347,7 +347,7 @@ void main() {
 
     final sdk = DaakiaCallkitFlutter(
       config: const DaakiaCallkitConfig(
-        baseUrl: 'https://stag-api.daakia.co.in',
+        baseUrl: 'https://api.example.com',
         secret: 'top-secret',
       ),
       httpClient: mockClient,

@@ -166,7 +166,7 @@ Preferred integration pattern:
 ```dart
 final sdk = DaakiaCallkitFlutter(
   config: const DaakiaCallkitConfig(
-    baseUrl: 'https://stag-api.daakia.co.in',
+    baseUrl: 'https://your-daakia-base-url',
     secret: 'your-shared-secret',
   ),
 );
@@ -215,7 +215,7 @@ Basic setup and backend calls:
 ```dart
 final sdk = DaakiaCallkitFlutter(
   config: const DaakiaCallkitConfig(
-    baseUrl: 'https://stag-api.daakia.co.in',
+    baseUrl: 'https://your-daakia-base-url',
     secret: 'your-shared-secret',
   ),
 );
@@ -264,7 +264,7 @@ Use Firestore for realtime call state:
 ```dart
 final sdk = DaakiaCallkitFlutter(
   config: const DaakiaCallkitConfig(
-    baseUrl: 'https://stag-api.daakia.co.in',
+    baseUrl: 'https://your-daakia-base-url',
     secret: 'your-shared-secret',
   ),
   callStateStore: DaakiaFirestoreCallStateStore(),
