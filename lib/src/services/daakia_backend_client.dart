@@ -53,6 +53,11 @@ class DaakiaBackendClient {
     return payload;
   }
 
+  void _throwIfBackendFailure(Map<String, dynamic> payload) {
+    if ((payload['success'] as num? ?? 0) == 1) return;
+    throw DaakiaBackendException(payload['message']?.toString() ?? 'Request failed');
+  }
+
   Future<DaakiaDeviceTokenRecord> registerDeviceToken({
     required String username,
     required String token,
@@ -70,6 +75,7 @@ class DaakiaBackendClient {
       }),
     );
     final payload = await _decodeResponse(response);
+    _throwIfBackendFailure(payload);
     return DaakiaDeviceTokenRecord.fromJson(
       Map<String, dynamic>.from(payload['data'] as Map<dynamic, dynamic>),
     );
@@ -87,6 +93,7 @@ class DaakiaBackendClient {
       headers: _headers,
     );
     final payload = await _decodeResponse(response);
+    _throwIfBackendFailure(payload);
     return DaakiaDeviceTokenRecord.fromJson(
       Map<String, dynamic>.from(payload['data'] as Map<dynamic, dynamic>),
     );
@@ -113,6 +120,7 @@ class DaakiaBackendClient {
       }),
     );
     final payload = await _decodeResponse(response);
+    _throwIfBackendFailure(payload);
     return DaakiaPushResult.fromJson(payload);
   }
 
@@ -135,6 +143,7 @@ class DaakiaBackendClient {
       }),
     );
     final payload = await _decodeResponse(response);
+    _throwIfBackendFailure(payload);
     return DaakiaPushResult.fromJson(payload);
   }
 }
