@@ -61,6 +61,20 @@ class DaakiaAndroidCallService {
     });
   }
 
+  Future<bool> canUseFullScreenIntent() async {
+    if (!Platform.isAndroid) return true;
+    final result = await _channel.invokeMethod<bool>('canUseFullScreenIntent');
+    return result ?? true;
+  }
+
+  Future<bool> openFullScreenIntentSettings() async {
+    if (!Platform.isAndroid) return false;
+    final result = await _channel.invokeMethod<bool>(
+      'openFullScreenIntentSettings',
+    );
+    return result ?? false;
+  }
+
   Future<void> _handleNativeCall(MethodCall call) async {
     if (call.arguments is! Map) return;
     final payload = Map<String, dynamic>.from(

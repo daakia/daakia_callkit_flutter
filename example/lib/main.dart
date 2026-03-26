@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:callkit/secret/secret_credential.dart';
 import 'package:daakia_callkit_flutter/daakia_callkit_flutter.dart';
@@ -110,7 +111,6 @@ class _DemoHomePageState extends State<DemoHomePage> {
   DaakiaCallkitFlutter? _sdk;
   StreamSubscription<RemoteMessage>? _foregroundMessageSubscription;
   StreamSubscription<RemoteMessage>? _messageOpenedAppSubscription;
-  StreamSubscription<DaakiaVoipEvent>? _voipEventSubscription;
 
   @override
   void initState() {
@@ -139,7 +139,6 @@ class _DemoHomePageState extends State<DemoHomePage> {
     _phoneController.dispose();
     _foregroundMessageSubscription?.cancel();
     _messageOpenedAppSubscription?.cancel();
-    _voipEventSubscription?.cancel();
     super.dispose();
   }
 
@@ -228,10 +227,50 @@ class _DemoHomePageState extends State<DemoHomePage> {
       },
     );
 
-    await _voipEventSubscription?.cancel();
-    _voipEventSubscription = sdk.voip.events.listen((DaakiaVoipEvent event) {
-      _appendLog('VoIP event: ${event.method} ${jsonEncode(event.payload)}');
-    });
+  }
+
+  Future<void> _handleCallEvent(DaakiaCallEvent event) async {
+    _appendLog(
+      'Call event [${event.platform.name}]: '
+      '${event.method} ${jsonEncode(event.payload)}',
+    );
+
+    final payload = event.call;
+    final sdk = _sdk;
+
+    switch (event.type) {
+      case DaakiaCallEventType.accepted:
+        if (sdk != null && sdk.supportsRealtimeCallState) {
+          await sdk.updateLocalCallStatus(
+            callId: payload.callId,
+            status: DaakiaCallStatus.accepted,
+            actorId: payload.receiverId,
+          );
+        }
+        return;
+      case DaakiaCallEventType.declined:
+        if (sdk != null && sdk.supportsRealtimeCallState) {
+          await sdk.updateLocalCallStatus(
+            callId: payload.callId,
+            status: DaakiaCallStatus.rejected,
+            actorId: payload.receiverId,
+          );
+        }
+        return;
+      case DaakiaCallEventType.timedOut:
+        if (sdk != null && sdk.supportsRealtimeCallState) {
+          await sdk.updateLocalCallStatus(
+            callId: payload.callId,
+            status: DaakiaCallStatus.missed,
+            actorId: payload.receiverId,
+          );
+        }
+        return;
+      case DaakiaCallEventType.incoming:
+      case DaakiaCallEventType.ended:
+      case DaakiaCallEventType.unknown:
+      return;
+    }
   }
 
   Future<void> _fetchFcmToken() async {
@@ -260,6 +299,68 @@ class _DemoHomePageState extends State<DemoHomePage> {
     _appendLog('Fetched FCM token: $token');
   }
 
+  Future<void> _requestAndroidNotificationPermission() async {
+    if (!Platform.isAndroid) return;
+    if (!widget.firebaseState.initialized) return;
+
+    final settings = await FirebaseMessaging.instance.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    _appendLog(
+      'Android notification permission: '
+      '${settings.authorizationStatus.name}',
+    );
+  }
+
+  Future<void> _ensureAndroidFullScreenIntentAccess(
+    DaakiaCallkitFlutter sdk,
+  ) async {
+    if (!Platform.isAndroid) return;
+
+    final canUseFullScreenIntent =
+        await sdk.notifications.canUseFullScreenIntent();
+    _appendLog(
+      'Android full-screen intent access: '
+      '${canUseFullScreenIntent ? 'allowed' : 'disabled'}',
+    );
+    if (canUseFullScreenIntent || !mounted) return;
+
+    final openSettings = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Enable Full-Screen Calls'),
+          content: const Text(
+            'Lock-screen incoming call UI may not appear until full-screen '
+            'notifications are enabled for this app.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Later'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Open Settings'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (openSettings == true) {
+      final opened = await sdk.notifications.openFullScreenIntentSettings();
+      _appendLog(
+        opened
+            ? 'Opened full-screen intent settings.'
+            : 'Could not open full-screen intent settings.',
+      );
+    }
+  }
+
   Future<void> _initializeSdk() async {
     if (_baseUrlController.text.trim().isEmpty ||
         _secretController.text.trim().isEmpty) {
@@ -268,15 +369,12 @@ class _DemoHomePageState extends State<DemoHomePage> {
     }
 
     final sdk = _buildSdk();
-    await sdk.notifications.initialize(
+    await _requestAndroidNotificationPermission();
+    await sdk.initialize(
       onIncomingCall: _openIncomingCallFromPayload,
-      onAcceptCall: (payload) async {
-        _appendLog('Accepted call ${payload.callId}');
-      },
-      onRejectCall: (payload) async {
-        _appendLog('Rejected call ${payload.callId}');
-      },
+      onCallEvent: _handleCallEvent,
     );
+    await _ensureAndroidFullScreenIntentAccess(sdk);
     await _bindIncomingHandlers(sdk);
 
     final initialMessage = await FirebaseMessaging.instance.getInitialMessage();

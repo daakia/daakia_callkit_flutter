@@ -21,7 +21,7 @@ Current backend-backed MVP requires:
 
 Notes:
 - Android always uses `config_name: prod`
-- iOS sandbox uses `config_name: stag`
+- iOS sandbox uses `config_name: dev`
 - iOS production uses `config_name: prod`
 - backend call status API is still pending, so status sync to backend is not implemented yet
 
@@ -95,6 +95,12 @@ For better UX after notification taps:
 - also handle `FirebaseMessaging.onMessageOpenedApp`
 - also check `FirebaseMessaging.instance.getInitialMessage()`
 
+Android 14+ full-screen intent note:
+- a manifest declaration alone is not always enough for lock-screen full-screen incoming call UI
+- on Android 14 and newer, full-screen intent access can be disabled in system settings for the app
+- the package exposes helpers through `sdk.notifications.canUseFullScreenIntent()` and `sdk.notifications.openFullScreenIntentSettings()`
+- if full-screen intent access is disabled, the app should explain the requirement and route the user to settings
+
 Backend note:
 - Android background wake-up is much more reliable when the backend sends a high-priority FCM data message for `incoming_call`
 - `flutter_local_notifications` can present a call-style full-screen notification, but it is still not identical to a native Android telecom/dialer integration; exact ringing behavior may vary by device/OEM
@@ -109,7 +115,7 @@ OEM/device note:
 Current package state:
 - Dart-side VoIP bridge is present
 - package now includes iOS plugin-side PushKit/CallKit bridge
-- backend `config_name` should be `stag` for sandbox and `prod` for production
+- backend `config_name` should be `dev` for sandbox and `prod` for production
 
 Required capabilities and settings in the host iOS app:
 - Push Notifications capability
@@ -154,6 +160,57 @@ If disabled:
 - realtime cancel/reject/missed/end synchronization becomes best-effort only
 
 ## Usage
+
+Preferred integration pattern:
+
+```dart
+final sdk = DaakiaCallkitFlutter(
+  config: const DaakiaCallkitConfig(
+    baseUrl: 'https://stag-api.daakia.co.in',
+    secret: 'your-shared-secret',
+  ),
+);
+
+await sdk.initialize(
+  onIncomingCall: (payload) async {
+    // Open your incoming-call UI if your app needs a Flutter screen.
+  },
+  onCallEvent: (event) async {
+    switch (event.type) {
+      case DaakiaCallEventType.incoming:
+        break;
+      case DaakiaCallEventType.accepted:
+        break;
+      case DaakiaCallEventType.declined:
+        break;
+      case DaakiaCallEventType.ended:
+        break;
+      case DaakiaCallEventType.timedOut:
+        break;
+      case DaakiaCallEventType.unknown:
+        break;
+    }
+  },
+);
+```
+
+Notes:
+- `sdk.initialize(...)` is the recommended app-facing setup entrypoint
+- `event.type` is the preferred typed lifecycle signal
+- `event.call` gives you the parsed `DaakiaIncomingCallPayload`
+- `event.platform` is available if you need platform-specific behavior
+- older lower-level APIs such as `sdk.events`, `sdk.voip.events`, and `sdk.notifications.initialize(...)` are still available for backward compatibility
+
+Example Android 14+ check:
+
+```dart
+if (Platform.isAndroid &&
+    !await sdk.notifications.canUseFullScreenIntent()) {
+  await sdk.notifications.openFullScreenIntentSettings();
+}
+```
+
+Basic setup and backend calls:
 
 ```dart
 final sdk = DaakiaCallkitFlutter(
@@ -224,25 +281,29 @@ await sdk.registerCurrentFcmDevice(
 );
 ```
 
-Show a full-screen incoming call notification from backend payload:
+Initialize iOS VoIP token registration:
+
+```dart
+await sdk.initializeVoip(
+  onVoipTokenUpdated: (token) async {
+    // Save or register the updated VoIP token.
+  },
+);
+```
+
+If you need the lower-level notification setup explicitly:
 
 ```dart
 await sdk.notifications.initialize(
   onIncomingCall: (payload) async {
     // Open your incoming call UI here.
   },
-  onAcceptCall: (payload) async {
-    // Accept flow.
-  },
-  onRejectCall: (payload) async {
-    // Reject flow.
-  },
 );
 
 await sdk.notifications.showIncomingCallNotificationFromData(payloadMap);
 ```
 
-Use the package-provided incoming call screen:
+Use the package-provided Flutter incoming call screen:
 
 ```dart
 Navigator.of(context).push(
