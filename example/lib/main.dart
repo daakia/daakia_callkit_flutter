@@ -4,6 +4,9 @@ import 'dart:io';
 
 import 'package:callkit/secret/secret_credential.dart';
 import 'package:daakia_callkit_flutter/daakia_callkit_flutter.dart';
+import 'package:daakia_vc_flutter_sdk/daakia_vc_flutter_sdk.dart';
+import 'package:daakia_vc_flutter_sdk/model/daakia_meeting_configuration.dart';
+import 'package:daakia_vc_flutter_sdk/model/participant_config.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -253,6 +256,7 @@ class _DemoHomePageState extends State<DemoHomePage> {
 
     switch (event.type) {
       case DaakiaCallEventType.accepted:
+        _joinCall(payload.callId, payload.title);
         if (sdk != null && sdk.supportsRealtimeCallState) {
           await sdk.updateLocalCallStatus(
             callId: payload.callId,
@@ -284,6 +288,33 @@ class _DemoHomePageState extends State<DemoHomePage> {
       case DaakiaCallEventType.unknown:
       return;
     }
+  }
+
+  Future<void> _joinCall(String? callUid, String? callerName) async {
+    if (callUid == null) return;
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            DaakiaVideoConferenceWidget(
+              meetingId: callUid,
+              secretKey: SecretCredential.daakiaVcSecretKey,
+              isHost: false,
+              configuration:
+              DaakiaMeetingConfiguration(
+                  participantNameConfig:
+                  ParticipantNameConfig(
+                    name: callerName ?? "Unknown",
+                    isEditable: false,
+                  ),
+                  skipPreJoinPage: true,
+                  enableCameraByDefault: true,
+                  enableMicrophoneByDefault: true
+              ),
+            ),
+      ),
+    );
+    await _sdk?.voip.endCall(callUid);
   }
 
   Future<void> _fetchFcmToken() async {
@@ -544,6 +575,7 @@ class _DemoHomePageState extends State<DemoHomePage> {
           payload: payload,
           onAccept: (DaakiaIncomingCallPayload payload) async {
             _appendLog('Incoming screen accept: ${payload.callId}');
+            _joinCall(payload.callId, payload.title);
             final sdk = _sdk;
             if (sdk != null && sdk.supportsRealtimeCallState) {
               await sdk.updateLocalCallStatus(

@@ -1201,7 +1201,65 @@ PODS:
     - Firebase/Firestore (= 12.9.0)
     - firebase_core
     - Flutter
+  - connectivity_plus (0.0.1):
+    - Flutter
   - daakia_callkit_flutter (0.0.1):
+    - Flutter
+  - datadog_flutter_plugin (0.0.1):
+    - DatadogCore (= 2.30.1)
+    - DatadogCrashReporting (= 2.30.1)
+    - DatadogInternal (= 2.30.1)
+    - DatadogLogs (= 2.30.1)
+    - DatadogRUM (= 2.30.1)
+    - DictionaryCoder (= 1.2.0)
+    - Flutter
+  - DatadogCore (2.30.1):
+    - DatadogInternal (= 2.30.1)
+  - DatadogCrashReporting (2.30.1):
+    - DatadogInternal (= 2.30.1)
+    - PLCrashReporter (~> 1.12.0)
+  - DatadogInternal (2.30.1)
+  - DatadogLogs (2.30.1):
+    - DatadogInternal (= 2.30.1)
+  - DatadogRUM (2.30.1):
+    - DatadogInternal (= 2.30.1)
+  - device_info_plus (0.0.1):
+    - Flutter
+  - DictionaryCoder (1.2.0)
+  - DKImagePickerController/Core (4.3.9):
+    - DKImagePickerController/ImageDataManager
+    - DKImagePickerController/Resource
+  - DKImagePickerController/ImageDataManager (4.3.9)
+  - DKImagePickerController/PhotoGallery (4.3.9):
+    - DKImagePickerController/Core
+    - DKPhotoGallery
+  - DKImagePickerController/Resource (4.3.9)
+  - DKPhotoGallery (0.0.19):
+    - DKPhotoGallery/Core (= 0.0.19)
+    - DKPhotoGallery/Model (= 0.0.19)
+    - DKPhotoGallery/Preview (= 0.0.19)
+    - DKPhotoGallery/Resource (= 0.0.19)
+    - SDWebImage
+    - SwiftyGif
+  - DKPhotoGallery/Core (0.0.19):
+    - DKPhotoGallery/Model
+    - DKPhotoGallery/Preview
+    - SDWebImage
+    - SwiftyGif
+  - DKPhotoGallery/Model (0.0.19):
+    - SDWebImage
+    - SwiftyGif
+  - DKPhotoGallery/Preview (0.0.19):
+    - DKPhotoGallery/Model
+    - DKPhotoGallery/Resource
+    - SDWebImage
+    - SwiftyGif
+  - DKPhotoGallery/Resource (0.0.19):
+    - SDWebImage
+    - SwiftyGif
+  - DTTJailbreakDetection (0.4.0)
+  - file_picker (0.0.1):
+    - DKImagePickerController/PhotoGallery
     - Flutter
   - Firebase/CoreOnly (12.9.0):
     - FirebaseCore (~> 12.9.0)
@@ -1264,6 +1322,11 @@ PODS:
   - FirebaseSharedSwift (12.9.0)
   - Flutter (1.0.0)
   - flutter_local_notifications (0.0.1):
+    - Flutter
+  - flutter_webrtc (1.2.0):
+    - Flutter
+    - WebRTC-SDK (= 137.7151.04)
+  - fluttertoast (0.0.2):
     - Flutter
   - GoogleDataTransport (10.1.0):
     - nanopb (~> 3.30910.0)
@@ -1385,36 +1448,83 @@ PODS:
   - gRPC-Core/Interface (1.69.0)
   - gRPC-Core/Privacy (1.69.0)
   - leveldb-library (1.22.6)
+  - livekit_client (2.5.4):
+    - Flutter
+    - flutter_webrtc
+    - WebRTC-SDK (= 137.7151.04)
   - nanopb (3.30910.0):
     - nanopb/decode (= 3.30910.0)
     - nanopb/encode (= 3.30910.0)
   - nanopb/decode (3.30910.0)
   - nanopb/encode (3.30910.0)
+  - open_file_ios (1.0.3):
+    - Flutter
   - package_info_plus (0.4.5):
     - Flutter
   - path_provider_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
+  - permission_handler_apple (9.3.0):
+    - Flutter
+  - PLCrashReporter (1.12.0)
   - PromisesObjC (2.4.0)
+  - safe_device (1.0.0):
+    - DTTJailbreakDetection
+    - Flutter
+  - SDWebImage (5.21.7):
+    - SDWebImage/Core (= 5.21.7)
+  - SDWebImage/Core (5.21.7)
+  - shared_preferences_foundation (0.0.1):
+    - Flutter
+    - FlutterMacOS
+  - SwiftyGif (5.4.5)
+  - url_launcher_ios (0.0.1):
+    - Flutter
   - wakelock_plus (0.0.1):
     - Flutter
+  - WebRTC-SDK (137.7151.04)
+  - webview_flutter_wkwebview (0.0.1):
+    - Flutter
+    - FlutterMacOS
 
 DEPENDENCIES:
   - audioplayers_darwin (from `.symlinks/plugins/audioplayers_darwin/darwin`)
   - cloud_firestore (from `.symlinks/plugins/cloud_firestore/ios`)
+  - connectivity_plus (from `.symlinks/plugins/connectivity_plus/ios`)
   - daakia_callkit_flutter (from `.symlinks/plugins/daakia_callkit_flutter/ios`)
+  - datadog_flutter_plugin (from `.symlinks/plugins/datadog_flutter_plugin/ios`)
+  - device_info_plus (from `.symlinks/plugins/device_info_plus/ios`)
+  - file_picker (from `.symlinks/plugins/file_picker/ios`)
   - firebase_core (from `.symlinks/plugins/firebase_core/ios`)
   - firebase_messaging (from `.symlinks/plugins/firebase_messaging/ios`)
   - Flutter (from `Flutter`)
   - flutter_local_notifications (from `.symlinks/plugins/flutter_local_notifications/ios`)
+  - flutter_webrtc (from `.symlinks/plugins/flutter_webrtc/ios`)
+  - fluttertoast (from `.symlinks/plugins/fluttertoast/ios`)
+  - livekit_client (from `.symlinks/plugins/livekit_client/ios`)
+  - open_file_ios (from `.symlinks/plugins/open_file_ios/ios`)
   - package_info_plus (from `.symlinks/plugins/package_info_plus/ios`)
   - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
+  - permission_handler_apple (from `.symlinks/plugins/permission_handler_apple/ios`)
+  - safe_device (from `.symlinks/plugins/safe_device/ios`)
+  - shared_preferences_foundation (from `.symlinks/plugins/shared_preferences_foundation/darwin`)
+  - url_launcher_ios (from `.symlinks/plugins/url_launcher_ios/ios`)
   - wakelock_plus (from `.symlinks/plugins/wakelock_plus/ios`)
+  - webview_flutter_wkwebview (from `.symlinks/plugins/webview_flutter_wkwebview/darwin`)
 
 SPEC REPOS:
   trunk:
     - abseil
     - BoringSSL-GRPC
+    - DatadogCore
+    - DatadogCrashReporting
+    - DatadogInternal
+    - DatadogLogs
+    - DatadogRUM
+    - DictionaryCoder
+    - DKImagePickerController
+    - DKPhotoGallery
+    - DTTJailbreakDetection
     - Firebase
     - FirebaseAppCheckInterop
     - FirebaseCore
@@ -1431,15 +1541,27 @@ SPEC REPOS:
     - gRPC-Core
     - leveldb-library
     - nanopb
+    - PLCrashReporter
     - PromisesObjC
+    - SDWebImage
+    - SwiftyGif
+    - WebRTC-SDK
 
 EXTERNAL SOURCES:
   audioplayers_darwin:
     :path: ".symlinks/plugins/audioplayers_darwin/darwin"
   cloud_firestore:
     :path: ".symlinks/plugins/cloud_firestore/ios"
+  connectivity_plus:
+    :path: ".symlinks/plugins/connectivity_plus/ios"
   daakia_callkit_flutter:
     :path: ".symlinks/plugins/daakia_callkit_flutter/ios"
+  datadog_flutter_plugin:
+    :path: ".symlinks/plugins/datadog_flutter_plugin/ios"
+  device_info_plus:
+    :path: ".symlinks/plugins/device_info_plus/ios"
+  file_picker:
+    :path: ".symlinks/plugins/file_picker/ios"
   firebase_core:
     :path: ".symlinks/plugins/firebase_core/ios"
   firebase_messaging:
@@ -1448,19 +1570,50 @@ EXTERNAL SOURCES:
     :path: Flutter
   flutter_local_notifications:
     :path: ".symlinks/plugins/flutter_local_notifications/ios"
+  flutter_webrtc:
+    :path: ".symlinks/plugins/flutter_webrtc/ios"
+  fluttertoast:
+    :path: ".symlinks/plugins/fluttertoast/ios"
+  livekit_client:
+    :path: ".symlinks/plugins/livekit_client/ios"
+  open_file_ios:
+    :path: ".symlinks/plugins/open_file_ios/ios"
   package_info_plus:
     :path: ".symlinks/plugins/package_info_plus/ios"
   path_provider_foundation:
     :path: ".symlinks/plugins/path_provider_foundation/darwin"
+  permission_handler_apple:
+    :path: ".symlinks/plugins/permission_handler_apple/ios"
+  safe_device:
+    :path: ".symlinks/plugins/safe_device/ios"
+  shared_preferences_foundation:
+    :path: ".symlinks/plugins/shared_preferences_foundation/darwin"
+  url_launcher_ios:
+    :path: ".symlinks/plugins/url_launcher_ios/ios"
   wakelock_plus:
     :path: ".symlinks/plugins/wakelock_plus/ios"
+  webview_flutter_wkwebview:
+    :path: ".symlinks/plugins/webview_flutter_wkwebview/darwin"
 
 SPEC CHECKSUMS:
   abseil: a05cc83bf02079535e17169a73c5be5ba47f714b
   audioplayers_darwin: 835ced6edd4c9fc8ebb0a7cc9e294a91d99917d5
   BoringSSL-GRPC: dded2a44897e45f28f08ae87a55ee4bcd19bc508
   cloud_firestore: d5c7f731e71034665afe74e3a1d0ff334f9b7799
+  connectivity_plus: cb623214f4e1f6ef8fe7403d580fdad517d2f7dd
   daakia_callkit_flutter: d1f04feea98e15272040791977547d37665157fc
+  datadog_flutter_plugin: 8cbbf0d89820bc9db1fa48e02bb87ee92d55d59c
+  DatadogCore: c09c6b3345d200ad8df6b8424562afc4c274d85e
+  DatadogCrashReporting: 19c67670fe9ee01cc4cbc3c859d6c69dc6344e9e
+  DatadogInternal: a712490b2c285095d748ccb437a9a630df949d7f
+  DatadogLogs: 084f7974d6dbe053b5fbabc07a245a700c1514f7
+  DatadogRUM: c9356f806db3599386f854bdb53494216600d2ae
+  device_info_plus: 21fcca2080fbcd348be798aa36c3e5ed849eefbe
+  DictionaryCoder: f7115fcd074c8301e91f2eb862da1ea7d0385e61
+  DKImagePickerController: 946cec48c7873164274ecc4624d19e3da4c1ef3c
+  DKPhotoGallery: b3834fecb755ee09a593d7c9e389d8b5d6deed60
+  DTTJailbreakDetection: 5e356c5badc17995f65a83ed9483f787a0057b71
+  file_picker: a0560bc09d61de87f12d246fc47d2119e6ef37be
   Firebase: 065f2bb395062046623036d8e6dc857bc2521d56
   firebase_core: afac1aac13c931e0401c7e74ed1276112030efab
   firebase_messaging: 7cb2727feb789751fc6936bcc8e08408970e2820
@@ -1475,16 +1628,29 @@ SPEC CHECKSUMS:
   FirebaseSharedSwift: 9d2fa84a46676302b89dbd5e6e62bce2fe376909
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   flutter_local_notifications: a5a732f069baa862e728d839dd2ebb904737effb
+  flutter_webrtc: c3e21fc0dcd9d8eb246ae4d5256fcbeb2f5ecd22
+  fluttertoast: 2c67e14dce98bbdb200df9e1acf610d7a6264ea1
   GoogleDataTransport: aae35b7ea0c09004c3797d53c8c41f66f219d6a7
   GoogleUtilities: 00c88b9a86066ef77f0da2fab05f65d7768ed8e1
   "gRPC-C++": cc207623316fb041a7a3e774c252cf68a058b9e8
   gRPC-Core: 860978b7db482de8b4f5e10677216309b5ff6330
   leveldb-library: cc8b8f8e013647a295ad3f8cd2ddf49a6f19be19
+  livekit_client: 53ca658779b78710fb458cccee28b53a13356c15
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
+  open_file_ios: 46184d802ee7959203f6392abcfa0dd49fdb5be0
   package_info_plus: af8e2ca6888548050f16fa2f1938db7b5a5df499
   path_provider_foundation: bb55f6dbba17d0dccd6737fe6f7f34fbd0376880
+  permission_handler_apple: 4ed2196e43d0651e8ff7ca3483a069d469701f2d
+  PLCrashReporter: db59ef96fa3d25f3650040d02ec2798cffee75f2
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
+  safe_device: 205ad04de30f4512ca889418d4783e1b6fdf8cfe
+  SDWebImage: e9fc87c1aab89a8ab1bbd74eba378c6f53be8abf
+  shared_preferences_foundation: 7036424c3d8ec98dfe75ff1667cb0cd531ec82bb
+  SwiftyGif: 706c60cf65fa2bc5ee0313beece843c8eb8194d4
+  url_launcher_ios: 7a95fa5b60cc718a708b8f2966718e93db0cef1b
   wakelock_plus: e29112ab3ef0b318e58cfa5c32326458be66b556
+  WebRTC-SDK: 40d4f5ba05cadff14e4db5614aec402a633f007e
+  webview_flutter_wkwebview: 8ebf4fded22593026f7dbff1fbff31ea98573c8d
 
 PODFILE CHECKSUM: 53a6aebc29ccee84c41f92f409fc20cd4ca011f1
 
