@@ -60,10 +60,6 @@ Your entitlements file must include the APNs environment:
 
 Use `production` for release provisioning when appropriate.
 
-Background mode setup reference:
-
-![iOS background modes and VoIP setup](assets/ios/background-modes-voip.png)
-
 ## SDK Initialization Flow
 
 Initialize the SDK first, then initialize VoIP:
