@@ -3,11 +3,12 @@ import 'package:http/testing.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:daakia_callkit_flutter/daakia_callkit_flutter.dart';
+import 'package:daakia_callkit_flutter/src/services/daakia_backend_client.dart';
 
 void main() {
   test('resolves config_name by platform and iOS environment', () {
     const config = DaakiaCallkitConfig(
-      baseUrl: 'https://stag-api.daakia.co.in',
+      baseUrl: 'https://api.example.com',
       secret: 'secret',
     );
     final sdk = DaakiaCallkitFlutter(config: config);
@@ -75,7 +76,7 @@ void main() {
 
     final sdk = DaakiaCallkitFlutter(
       config: const DaakiaCallkitConfig(
-        baseUrl: 'https://stag-api.daakia.co.in',
+        baseUrl: 'https://api.example.com',
         secret: 'top-secret',
       ),
       httpClient: mockClient,
@@ -100,6 +101,123 @@ void main() {
     expect(result.username, 'user_1');
     expect(result.token, 'token_123');
     expect(result.voipToken, 'voip_123');
+  });
+
+  test('registerCurrentDevice throws backend exception for success=0 payload', () async {
+    final mockClient = MockClient((http.Request request) async {
+      return http.Response(
+        '''
+        {
+          "success": 0,
+          "message": "Device token already registered!",
+          "data": []
+        }
+        ''',
+        200,
+        headers: <String, String>{'content-type': 'application/json'},
+      );
+    });
+
+    final sdk = DaakiaCallkitFlutter(
+      config: const DaakiaCallkitConfig(
+        baseUrl: 'https://api.example.com',
+        secret: 'top-secret',
+      ),
+      httpClient: mockClient,
+    );
+
+    expect(
+      () => sdk.registerCurrentDevice(
+        username: 'user_1',
+        token: 'token_123',
+        platform: DaakiaPlatform.android,
+      ),
+      throwsA(
+        isA<DaakiaBackendException>().having(
+          (error) => error.message,
+          'message',
+          'Device token already registered!',
+        ),
+      ),
+    );
+  });
+
+  test('registerCurrentDevice throws backend exception for validation failure payload', () async {
+    final mockClient = MockClient((http.Request request) async {
+      return http.Response(
+        '''
+        {
+          "status": "fail",
+          "success": 0,
+          "code": "BAD_REQUEST",
+          "message": "platform must be one of [android, ios]"
+        }
+        ''',
+        200,
+        headers: <String, String>{'content-type': 'application/json'},
+      );
+    });
+
+    final sdk = DaakiaCallkitFlutter(
+      config: const DaakiaCallkitConfig(
+        baseUrl: 'https://api.example.com',
+        secret: 'top-secret',
+      ),
+      httpClient: mockClient,
+    );
+
+    expect(
+      () => sdk.registerCurrentDevice(
+        username: 'user_1',
+        token: 'token_123',
+        platform: DaakiaPlatform.android,
+      ),
+      throwsA(
+        isA<DaakiaBackendException>().having(
+          (error) => error.message,
+          'message',
+          'platform must be one of [android, ios]',
+        ),
+      ),
+    );
+  });
+
+  test('getRegisteredDeviceToken throws backend exception for success=0 payload', () async {
+    final mockClient = MockClient((http.Request request) async {
+      return http.Response(
+        '''
+        {
+          "success": 0,
+          "message": "Device token not found!",
+          "data": []
+        }
+        ''',
+        200,
+        headers: <String, String>{'content-type': 'application/json'},
+      );
+    });
+
+    final sdk = DaakiaCallkitFlutter(
+      config: const DaakiaCallkitConfig(
+        baseUrl: 'https://api.example.com',
+        secret: 'top-secret',
+      ),
+      httpClient: mockClient,
+    );
+
+    expect(
+      () => sdk.getRegisteredDeviceToken(
+        username: 'ashif-ali-31',
+        platform: DaakiaPlatform.ios,
+      ),
+      throwsA(
+        isA<DaakiaBackendException>().having(
+          (error) => error.message,
+          'message',
+          'Device token not found!',
+        ),
+      ),
+    );
   });
 
   test('startCallByUsername sends username-based trigger payload', () async {
@@ -142,7 +260,7 @@ void main() {
 
     final sdk = DaakiaCallkitFlutter(
       config: const DaakiaCallkitConfig(
-        baseUrl: 'https://stag-api.daakia.co.in',
+        baseUrl: 'https://api.example.com',
         secret: 'top-secret',
       ),
       httpClient: mockClient,
@@ -160,6 +278,46 @@ void main() {
     expect(capturedBody, isNot(contains('"platform"')));
     expect(result.success, isTrue);
     expect(result.data['overall'], isA<Map<String, dynamic>>());
+  });
+
+  test('startCallByUsername throws backend exception for success=0 payload', () async {
+    final mockClient = MockClient((http.Request request) async {
+      return http.Response(
+        '''
+        {
+          "success": 0,
+          "message": "No device token found for this username!",
+          "data": []
+        }
+        ''',
+        200,
+        headers: <String, String>{'content-type': 'application/json'},
+      );
+    });
+
+    final sdk = DaakiaCallkitFlutter(
+      config: const DaakiaCallkitConfig(
+        baseUrl: 'https://api.example.com',
+        secret: 'top-secret',
+      ),
+      httpClient: mockClient,
+    );
+
+    expect(
+      () => sdk.startCallByUsername(
+        username: 'user_2',
+        title: 'Caller',
+        message: 'Incoming call',
+        data: const <String, dynamic>{'type': 'incoming_call', 'callId': 'abc'},
+      ),
+      throwsA(
+        isA<DaakiaBackendException>().having(
+          (error) => error.message,
+          'message',
+          'No device token found for this username!',
+        ),
+      ),
+    );
   });
 
   test('startCallByToken sends token-based trigger payload', () async {
@@ -189,7 +347,7 @@ void main() {
 
     final sdk = DaakiaCallkitFlutter(
       config: const DaakiaCallkitConfig(
-        baseUrl: 'https://stag-api.daakia.co.in',
+        baseUrl: 'https://api.example.com',
         secret: 'top-secret',
       ),
       httpClient: mockClient,

@@ -151,6 +151,19 @@ class _DemoHomePageState extends State<DemoHomePage> {
     });
   }
 
+  void _clearLog() {
+    setState(() {
+      _log = '';
+    });
+  }
+
+  String _describeSdkError(Object error) {
+    if (error.runtimeType.toString() == 'DaakiaBackendException') {
+      return error.toString();
+    }
+    return '$error';
+  }
+
   Future<void> _copyToken(String label, String? value) async {
     if (value == null || value.isEmpty) {
       _appendLog('$label is not available to copy.');
@@ -467,24 +480,28 @@ class _DemoHomePageState extends State<DemoHomePage> {
       return;
     }
 
-    final result = await sdk.registerCurrentFcmDevice(
-      username: _currentUsernameController.text.trim(),
-      platform: Theme.of(context).platform == TargetPlatform.iOS
-          ? DaakiaPlatform.ios
-          : DaakiaPlatform.android,
-      voipToken: _latestVoipToken,
-    );
+    try {
+      final result = await sdk.registerCurrentFcmDevice(
+        username: _currentUsernameController.text.trim(),
+        platform: Theme.of(context).platform == TargetPlatform.iOS
+            ? DaakiaPlatform.ios
+            : DaakiaPlatform.android,
+        voipToken: _latestVoipToken,
+      );
 
-    if (result == null) {
-      _appendLog('FCM token was not available.');
-      return;
+      if (result == null) {
+        _appendLog('FCM token was not available.');
+        return;
+      }
+
+      setState(() {
+        _latestFcmToken = result.token;
+        _latestVoipToken = result.voipToken ?? _latestVoipToken;
+      });
+      _appendLog('Registered FCM token for ${result.username}.');
+    } catch (error) {
+      _appendLog('Register FCM failed: ${_describeSdkError(error)}');
     }
-
-    setState(() {
-      _latestFcmToken = result.token;
-      _latestVoipToken = result.voipToken ?? _latestVoipToken;
-    });
-    _appendLog('Registered FCM token for ${result.username}.');
   }
 
   Future<void> _triggerByUsername() async {
@@ -498,14 +515,18 @@ class _DemoHomePageState extends State<DemoHomePage> {
       return;
     }
 
-    final result = await sdk.startCallByUsername(
-      username: _targetUsernameController.text.trim(),
-      title: _callerNameController.text.trim(),
-      message: 'Incoming call',
-      data: _incomingPayloadMap(),
-    );
+    try {
+      final result = await sdk.startCallByUsername(
+        username: _targetUsernameController.text.trim(),
+        title: _callerNameController.text.trim(),
+        message: 'Incoming call',
+        data: _incomingPayloadMap(),
+      );
 
-    _appendLog('Triggered by username: ${jsonEncode(result.data)}');
+      _appendLog('Triggered by username: ${jsonEncode(result.data)}');
+    } catch (error) {
+      _appendLog('Trigger by username failed: ${_describeSdkError(error)}');
+    }
   }
 
   Future<void> _triggerByToken() async {
@@ -519,17 +540,21 @@ class _DemoHomePageState extends State<DemoHomePage> {
       return;
     }
 
-    final result = await sdk.startCallByToken(
-      token: _directTokenController.text.trim(),
-      platform: Theme.of(context).platform == TargetPlatform.iOS
-          ? DaakiaPlatform.ios
-          : DaakiaPlatform.android,
-      title: _callerNameController.text.trim(),
-      message: 'Incoming call',
-      data: _incomingPayloadMap(),
-    );
+    try {
+      final result = await sdk.startCallByToken(
+        token: _directTokenController.text.trim(),
+        platform: Theme.of(context).platform == TargetPlatform.iOS
+            ? DaakiaPlatform.ios
+            : DaakiaPlatform.android,
+        title: _callerNameController.text.trim(),
+        message: 'Incoming call',
+        data: _incomingPayloadMap(),
+      );
 
-    _appendLog('Triggered by token: ${jsonEncode(result.data)}');
+      _appendLog('Triggered by token: ${jsonEncode(result.data)}');
+    } catch (error) {
+      _appendLog('Trigger by token failed: ${_describeSdkError(error)}');
+    }
   }
 
   Future<void> _simulateIncomingCall() async {
@@ -726,9 +751,19 @@ class _DemoHomePageState extends State<DemoHomePage> {
             ],
           ),
           const SizedBox(height: 24),
-          const Text(
-            'Event Log',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+          Row(
+            children: <Widget>[
+              const Expanded(
+                child: Text(
+                  'Event Log',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                ),
+              ),
+              TextButton(
+                onPressed: _clearLog,
+                child: const Text('Clear Log'),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           Container(
