@@ -16,6 +16,7 @@ After this guide, your Android app should be able to:
 Add these permissions to `AndroidManifest.xml`:
 
 ```xml
+<uses-permission android:name="android.permission.INTERNET" />
 <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 <uses-permission android:name="android.permission.VIBRATE" />
@@ -29,10 +30,7 @@ Your main activity should allow lock-screen presentation:
 <activity
     android:name=".MainActivity"
     android:exported="true"
-    android:launchMode="singleTop"
-    android:showOnLockScreen="true"
-    android:turnScreenOn="true"
-    android:showWhenLocked="true" />
+    android:launchMode="singleTop"/>
 ```
 
 Result on device:
