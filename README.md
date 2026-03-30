@@ -1,3 +1,20 @@
+<p align="center">
+  <span
+    style="
+      display: inline-block;
+      background: #ffffff;
+      padding: 16px 20px;
+      border-radius: 12px;
+    "
+  >
+    <img
+      src="https://www.daakia.co.in/assets/images/frontend/logo-dark.svg"
+      alt="Daakia logo"
+      width="220"
+    />
+  </span>
+</p>
+
 # daakia_callkit_flutter
 
 `daakia_callkit_flutter` helps Flutter apps integrate Daakia-backed incoming call signaling for Android and iOS.
