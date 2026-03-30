@@ -73,7 +73,7 @@ await sdk.registerCurrentDevice(
   username: 'current_user_id',
   token: 'fcm_or_apns_token',
   voipToken: 'optional_ios_voip_token',
-  platform: DaakiaPlatform.android/DaakiaPlatform.ios,
+  platform: DaakiaPlatform.android, // or DaakiaPlatform.ios
 );
 ```
 
