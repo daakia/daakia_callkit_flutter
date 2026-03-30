@@ -133,7 +133,7 @@ class DaakiaCallkitFlutter {
     );
   }
 
-  Future<DaakiaDeviceTokenRecord?> registerCurrentFcmDevice({
+  Future<DaakiaDeviceTokenRecord?> registerCurrentPushDevice({
     required String username,
     required DaakiaPlatform platform,
     String? voipToken,
@@ -149,6 +149,24 @@ class DaakiaCallkitFlutter {
       token: token,
       platform: platform,
       voipToken: voipToken,
+    );
+  }
+
+  @Deprecated(
+    'Use registerCurrentPushDevice(...) instead. '
+    'This method still fetches the current FCM token and can optionally attach the iOS VoIP token.',
+  )
+  Future<DaakiaDeviceTokenRecord?> registerCurrentFcmDevice({
+    required String username,
+    required DaakiaPlatform platform,
+    String? voipToken,
+    bool requestApplePermission = true,
+  }) {
+    return registerCurrentPushDevice(
+      username: username,
+      platform: platform,
+      voipToken: voipToken,
+      requestApplePermission: requestApplePermission,
     );
   }
 

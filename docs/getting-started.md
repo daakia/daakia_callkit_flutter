@@ -60,7 +60,7 @@ Optional:
 4. Create `DaakiaCallkitFlutter` with `baseUrl` and `secret`.
 5. Call `sdk.initialize(...)`.
 6. On iOS, call `sdk.initializeVoip(...)`.
-7. Call `sdk.registerCurrentFcmDevice(...)` after login or user identification.
+7. Call `sdk.registerCurrentPushDevice(...)` after login or user identification.
 8. Trigger a test call from your backend or test app.
 
 ## Keep The Root Flow Simple

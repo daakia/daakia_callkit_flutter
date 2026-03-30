@@ -22,9 +22,11 @@ Add these permissions to `AndroidManifest.xml`:
 <uses-permission android:name="android.permission.VIBRATE" />
 ```
 
-## Recommended Activity Flags
+## Main Activity Note
 
-Your main activity should allow lock-screen presentation:
+Your host app `MainActivity` can remain minimal for this SDK flow. The package uses its own `IncomingCallActivity` to handle the lock-screen incoming call UI.
+
+A minimal host activity looks like this:
 
 ```xml
 <activity

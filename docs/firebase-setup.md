@@ -39,7 +39,7 @@ Android:
 
 iOS:
 - add `GoogleService-Info.plist` to the iOS Runner target in Xcode
-- the file would go in `ios/Runner/`
+- place the file in `ios/Runner/`
 
 ## Code Initialization
 

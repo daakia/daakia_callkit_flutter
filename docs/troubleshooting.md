@@ -14,8 +14,8 @@ Check:
 
 Check:
 - `USE_FULL_SCREEN_INTENT` permission is present
-- activity lock-screen flags are present
-- Android 14 full-screen intent access is enabled for the app
+- full-screen intent access is enabled for the app on Android 14+
+- the SDK's incoming call activity is opening as expected
 - notification permission is granted
 - the device is not heavily restricting background activity
 
