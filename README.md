@@ -69,10 +69,11 @@ await sdk.initialize(
 Register the current device:
 
 ```dart
-await sdk.registerCurrentFcmDevice(
+await sdk.registerCurrentDevice(
   username: 'current_user_id',
-  platform: DaakiaPlatform.android,
+  token: 'fcm_or_apns_token',
   voipToken: 'optional_ios_voip_token',
+  platform: DaakiaPlatform.android/DaakiaPlatform.ios,
 );
 ```
 
