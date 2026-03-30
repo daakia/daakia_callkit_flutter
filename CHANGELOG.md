@@ -1,4 +1,6 @@
-## 1.0.0
+# CHANGELOG
+
+## 1.0.0 - (2026-03)
 
 Initial release of `daakia_callkit_flutter`.
 
