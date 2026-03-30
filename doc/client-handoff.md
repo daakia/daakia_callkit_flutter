@@ -1,49 +1,65 @@
 # Client Handoff Checklist
 
-Use this document when collecting everything needed from the client or integrating team.
+Use this document during client onboarding.
 
-This separates business-side coordination from SDK code setup.
+It explains:
+- what the client must share with Daakia
+- what Daakia will set up for the client
+- what Daakia will provide back for SDK integration
 
-## Required From Client
+## What The Client Must Provide
 
-Backend and app identification:
-- Daakia backend `baseUrl`
-- Daakia backend `secret`
+App and project identification:
 - Firebase project ID
 - Android package name
 - iOS bundle identifier
 - Apple Team ID
 - Apple `.p8` Key ID
 
-Firebase / Google credentials:
+Firebase and app setup files:
 - Firebase service account `key.json`
-- `google-services.json` for Android app setup
-- `GoogleService-Info.plist` for iOS app setup
 
-Apple push credentials:
-- APNs `.p8` key material and clear environment mapping for sandbox and production
-- VoIP certificate or VoIP push credential material used by the backend
+Apple push and VoIP setup material:
+- APNs `.p8` key file
+- clear environment requirement: sandbox, production, or both
+- VoIP certificate or VoIP push credential material for iOS incoming call delivery
 
-## Environment Notes
+## What Daakia Will Do
 
-- If the client uses only production, sandbox credentials can be skipped.
-- If the client wants both development and production iOS push delivery, keep the environments clearly separated.
-- In this SDK, iOS sandbox resolves to `config_name: dev` and iOS production resolves to `config_name: prod`.
+After receiving the required files and project details, Daakia will complete the required backend-side setup for the client.
 
-## What The Backend Team Usually Needs
+This includes setting up the client configuration needed for:
+- Firebase notification delivery
+- APNs configuration
+- VoIP push setup where applicable
+- environment mapping for iOS sandbox and production
 
-To send pushes correctly, the backend side usually needs:
-- Firebase service account `key.json`
-- Firebase project ID
-- Android package name
-- iOS bundle identifier
-- Apple Team ID
-- `.p8` key file
-- `.p8` Key ID
-- APNs environment mapping for sandbox and production
-- VoIP push credential setup if iOS incoming calls should use PushKit / CallKit
+## What Daakia Will Provide Back
 
-Depending on backend design, the same APNs auth key may be used for both iOS environments. Even in that case, the backend team still needs explicit sandbox and production mapping.
+After onboarding is completed, Daakia will provide:
+- Daakia backend `baseUrl`
+- Daakia backend `secret`
+- SDK usage authorization or license key
+- confirmation that backend-side setup is completed
+
+## Important Environment Notes
+
+- iOS sandbox and iOS production are different environments.
+- `dev` and `prod` are not interchangeable.
+- a production setup cannot be used as a sandbox setup
+- a sandbox setup cannot be used as a production setup
+
+In this SDK:
+- iOS sandbox resolves to `config_name: dev`
+- iOS production resolves to `config_name: prod`
+
+If a client provides only production credentials:
+- production usage is possible
+- sandbox testing will not work
+
+If a client wants both sandbox testing and production use:
+- both environments must be prepared correctly
+- the corresponding credentials and setup details must be available
 
 ## Suggested Collection Format
 
@@ -51,7 +67,7 @@ Ask the client to provide these values in one structured handoff document:
 
 ```text
 Project name:
-Environment: dev / prod / both
+Environment required: sandbox / production / both
 Firebase project ID:
 Android package name:
 iOS bundle identifier:
@@ -60,21 +76,21 @@ Apple Key ID:
 APNs .p8 file:
 Firebase service account key.json:
 VoIP certificate / credential:
-Daakia backend baseUrl:
-Daakia backend secret:
 ```
 
-## Validation Before Development Starts
+## Validation Before SDK Integration
 
-Confirm these before implementation starts:
+Confirm these before SDK integration starts:
 - Firebase project exists
 - Android app is registered in Firebase
 - iOS app is registered in Firebase
 - APNs key is valid for the intended Apple account
 - bundle ID matches the Apple setup
 - package name matches the Firebase Android app
-- backend team knows which environment is sandbox vs production
+- required environment choice is clearly confirmed: sandbox, production, or both
+- Daakia backend setup is completed
+- Daakia `baseUrl` and `secret` have been issued to the client
 
 ## Keep This Separate From SDK Docs
 
-This checklist is intentionally separate from coding setup docs so developers can skip it if infrastructure is already prepared.
+This checklist is intentionally separate from coding setup docs so developers can skip it if onboarding is already completed.
