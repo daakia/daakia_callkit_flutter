@@ -57,7 +57,3 @@ If your backend stores different credentials per environment, this mapping must 
 ## VoIP Note
 
 If your backend uses separate VoIP push handling, confirm that the backend team also has the required VoIP credential setup. Keep standard APNs setup and VoIP setup clearly documented as separate concerns.
-
-## Screenshot Scope
-
-These screenshots are included because this is the part teams most often misconfigure. Avoid adding more unless they explain a different step.

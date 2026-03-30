@@ -36,11 +36,10 @@ If your iOS app is already added in Firebase, the APNs upload area will look sim
 
 Android:
 - place `google-services.json` in `android/app/`
-- in the example app, the file would go in `example/android/app/`
 
 iOS:
 - add `GoogleService-Info.plist` to the iOS Runner target in Xcode
-- in the example app, the file would go in `example/ios/Runner/`
+- place the file in `ios/Runner/`
 
 ## Code Initialization
 
@@ -65,10 +64,3 @@ If you also support Android background call pushes, register the background hand
 - `daakia_callkit_flutter` does not replace Firebase setup.
 - The host app still owns Firebase project configuration.
 - If Firebase is not configured correctly, token fetch and background push handling will fail.
-
-## When Screenshots Help
-
-Add screenshots here only if your team repeatedly misses one of these steps:
-- adding the iOS app to Firebase
-- downloading the correct config file
-- adding `GoogleService-Info.plist` to the Runner target

@@ -60,10 +60,6 @@ Your entitlements file must include the APNs environment:
 
 Use `production` for release provisioning when appropriate.
 
-Background mode setup reference:
-
-![iOS background modes and VoIP setup](assets/ios/background-modes-voip.png)
-
 ## SDK Initialization Flow
 
 Initialize the SDK first, then initialize VoIP:
@@ -87,10 +83,10 @@ await sdk.initializeVoip(
 
 ## Token Registration
 
-For iOS, register the current FCM token and include the VoIP token when available:
+For iOS, register the current push device. The SDK fetches the current FCM token and can include the VoIP token when available:
 
 ```dart
-await sdk.registerCurrentFcmDevice(
+await sdk.registerCurrentPushDevice(
   username: 'current_user_id',
   platform: DaakiaPlatform.ios,
   voipToken: latestVoipToken,

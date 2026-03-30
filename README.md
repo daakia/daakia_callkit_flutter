@@ -1,3 +1,20 @@
+<p align="center">
+  <span
+    style="
+      display: inline-block;
+      background: #ffffff;
+      padding: 16px 20px;
+      border-radius: 12px;
+    "
+  >
+    <img
+      src="https://www.daakia.co.in/assets/images/frontend/logo-dark.svg"
+      alt="Daakia logo"
+      width="220"
+    />
+  </span>
+</p>
+
 # daakia_callkit_flutter
 
 `daakia_callkit_flutter` helps Flutter apps integrate Daakia-backed incoming call signaling for Android and iOS.
@@ -8,7 +25,7 @@ It covers:
 - Android full-screen incoming call notifications
 - iOS VoIP / CallKit bridge
 - a default incoming call screen
-- optional Firestore-based call state sync
+- optional Firestore-based call state sync (experimental)
 
 It does not cover:
 - authentication
@@ -26,8 +43,23 @@ Required:
 - iOS bundle identifier
 
 Optional:
-- Firestore for realtime call status sync
+- Firestore for experimental realtime call status sync
 - `daakia_vc_flutter_sdk` if you also want Daakia's call joining SDK
+
+## Obtaining SDK Access
+
+To use `daakia_callkit_flutter`, you need Daakia-issued backend access for your project.
+
+This typically includes:
+- Daakia backend `baseUrl`
+- Daakia backend `secret`
+- SDK usage authorization or valid license access
+
+How to get access:
+- Contact us at [contact@daakia.co.in](mailto:contact@daakia.co.in)
+- Visit our website: [https://www.daakia.co.in/](https://www.daakia.co.in/)
+
+Our team will guide you through onboarding, collect the required client setup details, complete the backend-side configuration, and provide the credentials needed to use the SDK.
 
 ## Quick Start
 
@@ -35,7 +67,7 @@ Add the package:
 
 ```yaml
 dependencies:
-  daakia_callkit_flutter: ^0.0.1
+  daakia_callkit_flutter: ^1.0.0
 ```
 
 Initialize the SDK:
@@ -69,10 +101,11 @@ await sdk.initialize(
 Register the current device:
 
 ```dart
-await sdk.registerCurrentFcmDevice(
+await sdk.registerCurrentDevice(
   username: 'current_user_id',
-  platform: DaakiaPlatform.android,
+  token: 'fcm_or_apns_token',
   voipToken: 'optional_ios_voip_token',
+  platform: DaakiaPlatform.android, // or DaakiaPlatform.ios
 );
 ```
 
@@ -106,28 +139,27 @@ await sdk.startCallByUsername(
 ## Documentation
 
 Start here:
-- [Getting started](docs/getting-started.md)
-- [Client handoff checklist](docs/client-handoff.md)
+- [Getting started](doc/getting-started.md)
+- [Client handoff checklist](doc/client-handoff.md)
 
 Platform setup:
-- [Firebase setup](docs/firebase-setup.md)
-- [Android setup](docs/android-setup.md)
-- [iOS setup](docs/ios-setup.md)
-- [APNs and Firebase linking](docs/ios-apns-firebase-linking.md)
+- [Firebase setup](doc/firebase-setup.md)
+- [Android setup](doc/android-setup.md)
+- [iOS setup](doc/ios-setup.md)
+- [APNs and Firebase linking](doc/ios-apns-firebase-linking.md)
 
 SDK usage:
-- [SDK usage](docs/usage.md)
-- [Optional Firestore integration](docs/firestore-optional.md)
-- [Optional call UI / call joining integration](docs/call-ui-integration.md)
-- [Troubleshooting](docs/troubleshooting.md)
+- [SDK usage](doc/usage.md)
+- [Optional Firestore integration](doc/firestore-optional.md)
+- [Optional call UI / call joining integration](doc/call-ui-integration.md)
+- [Troubleshooting](doc/troubleshooting.md)
 
 ## Important Notes
 
 - Android always uses `config_name: prod`.
 - iOS sandbox uses `config_name: dev`.
 - iOS production uses `config_name: prod`.
-- Firestore is optional.
-- `updateBackendCallStatus()` is not implemented because the backend status API is not available yet.
+- Firestore support is optional and currently experimental.
 - Android background call delivery still requires a top-level `FirebaseMessaging.onBackgroundMessage(...)` handler in the host app.
 - Real iOS VoIP / CallKit validation still requires a signed physical device.
 
@@ -150,3 +182,5 @@ This package handles signaling and incoming-call orchestration. Joining the actu
 
 If you want to use Daakia's call SDK as well, see:
 - https://pub.dev/packages/daakia_vc_flutter_sdk
+
+For support, email [contact@daakia.co.in](mailto:contact@daakia.co.in).

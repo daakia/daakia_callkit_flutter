@@ -52,15 +52,17 @@ final voipToken = await sdk.initializeVoip(
 
 ## Register The Current Device
 
-If you want the SDK to fetch the current FCM token and register it:
+If you want the SDK to fetch the current FCM token and register the current push device:
 
 ```dart
-await sdk.registerCurrentFcmDevice(
+await sdk.registerCurrentPushDevice(
   username: 'current_user_id',
-  platform: DaakiaPlatform.android,
+  platform: DaakiaPlatform.android, // or DaakiaPlatform.ios
   voipToken: latestVoipToken,
 );
 ```
+
+`voipToken` is only relevant on iOS. On Android, leave it `null` or omit it.
 
 If you already have the token yourself:
 
@@ -69,7 +71,7 @@ await sdk.registerCurrentDevice(
   username: 'current_user_id',
   token: 'fcm_or_apns_token',
   voipToken: 'optional_ios_voip_token',
-  platform: DaakiaPlatform.android,
+  platform: DaakiaPlatform.android, // or DaakiaPlatform.ios
 );
 ```
 

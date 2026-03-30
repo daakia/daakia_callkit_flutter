@@ -15,7 +15,7 @@ class DaakiaPushResult {
       success: (json['success'] as num? ?? 0) == 1,
       message: json['message']?.toString() ?? '',
       data: rawData is Map
-          ? Map<String, dynamic>.from(rawData as Map<dynamic, dynamic>)
+          ? Map<String, dynamic>.from(rawData)
           : const <String, dynamic>{},
     );
   }

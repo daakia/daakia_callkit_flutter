@@ -481,7 +481,7 @@ class _DemoHomePageState extends State<DemoHomePage> {
     }
 
     try {
-      final result = await sdk.registerCurrentFcmDevice(
+      final result = await sdk.registerCurrentPushDevice(
         username: _currentUsernameController.text.trim(),
         platform: Theme.of(context).platform == TargetPlatform.iOS
             ? DaakiaPlatform.ios
@@ -498,9 +498,9 @@ class _DemoHomePageState extends State<DemoHomePage> {
         _latestFcmToken = result.token;
         _latestVoipToken = result.voipToken ?? _latestVoipToken;
       });
-      _appendLog('Registered FCM token for ${result.username}.');
+      _appendLog('Registered push device for ${result.username}.');
     } catch (error) {
-      _appendLog('Register FCM failed: ${_describeSdkError(error)}');
+      _appendLog('Register push device failed: ${_describeSdkError(error)}');
     }
   }
 
@@ -664,7 +664,7 @@ class _DemoHomePageState extends State<DemoHomePage> {
             },
             title: const Text('Enable Firestore adapter'),
             subtitle: const Text(
-              'Optional realtime call-state sync for accept/reject/cancel/missed.',
+              'Experimental realtime call-state sync for accept/reject/cancel/missed.',
             ),
           ),
           const SizedBox(height: 12),
@@ -734,7 +734,7 @@ class _DemoHomePageState extends State<DemoHomePage> {
               ),
               FilledButton(
                 onPressed: _registerFcm,
-                child: const Text('Register FCM'),
+                child: const Text('Register Push Device'),
               ),
               FilledButton(
                 onPressed: _triggerByUsername,

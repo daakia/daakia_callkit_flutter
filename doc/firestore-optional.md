@@ -4,6 +4,12 @@ Use this guide only if you want realtime call state sync between caller and call
 
 Skip this if basic incoming call delivery is enough for your first version.
 
+## Stability Note
+
+The Firestore adapter is currently experimental.
+
+It is available for teams that want to try realtime call-state sync, but it is not fully validated yet. Do not treat it as a stable, production-proven part of the SDK at this stage.
+
 ## What Firestore Improves
 
 When Firestore is enabled, it can improve:
@@ -52,4 +58,4 @@ Get this working first:
 - incoming call screen opens
 - accept or reject callbacks fire
 
-Then add Firestore if you need better multi-device state sync.
+Then add Firestore only if you need better multi-device state sync and are comfortable using an experimental feature.
