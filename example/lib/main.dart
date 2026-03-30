@@ -664,7 +664,7 @@ class _DemoHomePageState extends State<DemoHomePage> {
             },
             title: const Text('Enable Firestore adapter'),
             subtitle: const Text(
-              'Optional realtime call-state sync for accept/reject/cancel/missed.',
+              'Experimental realtime call-state sync for accept/reject/cancel/missed.',
             ),
           ),
           const SizedBox(height: 12),

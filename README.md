@@ -8,7 +8,7 @@ It covers:
 - Android full-screen incoming call notifications
 - iOS VoIP / CallKit bridge
 - a default incoming call screen
-- optional Firestore-based call state sync
+- optional Firestore-based call state sync (experimental)
 
 It does not cover:
 - authentication
@@ -26,7 +26,7 @@ Required:
 - iOS bundle identifier
 
 Optional:
-- Firestore for realtime call status sync
+- Firestore for experimental realtime call status sync
 - `daakia_vc_flutter_sdk` if you also want Daakia's call joining SDK
 
 ## Quick Start
@@ -127,7 +127,7 @@ SDK usage:
 - Android always uses `config_name: prod`.
 - iOS sandbox uses `config_name: dev`.
 - iOS production uses `config_name: prod`.
-- Firestore is optional.
+- Firestore support is optional and currently experimental.
 - Android background call delivery still requires a top-level `FirebaseMessaging.onBackgroundMessage(...)` handler in the host app.
 - Real iOS VoIP / CallKit validation still requires a signed physical device.
 

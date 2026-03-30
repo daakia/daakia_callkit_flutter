@@ -47,7 +47,7 @@ Required for basic incoming call flow:
 - iOS VoIP / APNs setup for iOS
 
 Optional:
-- Firestore call state sync
+- experimental Firestore call state sync
 - custom ringtone behavior
 - your own incoming call UI
 - `daakia_vc_flutter_sdk` or any other media SDK
@@ -74,4 +74,4 @@ For the first pass, aim for this sequence only:
 - register token
 - receive one incoming call successfully
 
-Once this works, add optional Firestore sync or your call media SDK.
+Once this works, add experimental Firestore sync or your call media SDK only if you need it.
