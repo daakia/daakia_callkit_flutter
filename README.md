@@ -46,6 +46,21 @@ Optional:
 - Firestore for experimental realtime call status sync
 - `daakia_vc_flutter_sdk` if you also want Daakia's call joining SDK
 
+## Obtaining SDK Access
+
+To use `daakia_callkit_flutter`, you need Daakia-issued backend access for your project.
+
+This typically includes:
+- Daakia backend `baseUrl`
+- Daakia backend `secret`
+- SDK usage authorization or valid license access
+
+How to get access:
+- Contact us at [contact@daakia.co.in](mailto:contact@daakia.co.in)
+- Visit our website: [https://www.daakia.co.in/](https://www.daakia.co.in/)
+
+Our team will guide you through onboarding, collect the required client setup details, complete the backend-side configuration, and provide the credentials needed to use the SDK.
+
 ## Quick Start
 
 Add the package:
@@ -167,3 +182,5 @@ This package handles signaling and incoming-call orchestration. Joining the actu
 
 If you want to use Daakia's call SDK as well, see:
 - https://pub.dev/packages/daakia_vc_flutter_sdk
+
+For support, email [contact@daakia.co.in](mailto:contact@daakia.co.in).
