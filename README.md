@@ -128,7 +128,6 @@ SDK usage:
 - iOS sandbox uses `config_name: dev`.
 - iOS production uses `config_name: prod`.
 - Firestore is optional.
-- `updateBackendCallStatus()` is not implemented because the backend status API is not available yet.
 - Android background call delivery still requires a top-level `FirebaseMessaging.onBackgroundMessage(...)` handler in the host app.
 - Real iOS VoIP / CallKit validation still requires a signed physical device.
 
