@@ -32,6 +32,10 @@ Under Background Modes, enable:
 - `remote-notification`
 - `audio`
 
+Reference screens:
+
+![Xcode signing and capabilities](assets/ios/xcode-signing-capabilities.png)
+
 ## `Info.plist`
 
 Ensure these background modes exist:
@@ -55,6 +59,10 @@ Your entitlements file must include the APNs environment:
 ```
 
 Use `production` for release provisioning when appropriate.
+
+Background mode setup reference:
+
+![iOS background modes and VoIP setup](assets/ios/background-modes-voip.png)
 
 ## SDK Initialization Flow
 
@@ -95,6 +103,8 @@ If you use Firebase Cloud Messaging in the app, you still need the Apple push si
 
 Use [ios-apns-firebase-linking.md](ios-apns-firebase-linking.md) for that part.
 
-## When To Use Screenshots
+Result on device:
 
-Screenshots are worth adding here only for the Xcode capability screens because those are easy to misconfigure.
+![iOS incoming call notification](assets/ios/ios-notification-call.png)
+
+![iOS full-screen incoming call](assets/ios/ios-full-screen-call.png)

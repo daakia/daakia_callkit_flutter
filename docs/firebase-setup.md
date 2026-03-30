@@ -28,6 +28,10 @@ After this guide, your app should have:
 5. Place the files in the correct app locations.
 6. Ensure your Flutter app initializes Firebase before using messaging.
 
+If your iOS app is already added in Firebase, the APNs upload area will look similar to this:
+
+![Firebase iOS app settings APNs upload](assets/firebase/firebase-ios-app-settings-apns-upload.png)
+
 ## App File Placement
 
 Android:

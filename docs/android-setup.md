@@ -35,6 +35,12 @@ Your main activity should allow lock-screen presentation:
     android:showWhenLocked="true" />
 ```
 
+Result on device:
+
+![Android incoming call notification](assets/android/android-notification-call.png)
+
+![Android full-screen incoming call](assets/android/android-full-screen-call.png)
+
 ## Background Message Handler Is Required
 
 Foreground-only FCM handling is not enough.
@@ -87,6 +93,10 @@ if (!await sdk.notifications.canUseFullScreenIntent()) {
   await sdk.notifications.openFullScreenIntentSettings();
 }
 ```
+
+Example settings screen:
+
+![Android full-screen intent permission settings](assets/android/android-full-screen-intent-settings.png)
 
 ## Delivery Expectations
 

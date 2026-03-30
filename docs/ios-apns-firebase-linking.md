@@ -39,6 +39,14 @@ Review [client-handoff.md](client-handoff.md) first if these are not ready.
 
 The same APNs auth key can be used for both sandbox and production if the backend is built that way. Even then, document the environment mapping explicitly so there is no ambiguity.
 
+Reference screens:
+
+![Apple Developer APNs key creation](assets/ios/apple-developer-apns-key.png)
+
+![Apple Team ID and Key ID reference](assets/ios/apple-team-id-key-id.png)
+
+![Firebase APNs key upload](assets/firebase/firebase-ios-app-settings-apns-upload.png)
+
 ## Environment Mapping For This SDK
 
 - iOS sandbox uses `config_name: dev`
@@ -50,10 +58,6 @@ If your backend stores different credentials per environment, this mapping must 
 
 If your backend uses separate VoIP push handling, confirm that the backend team also has the required VoIP credential setup. Keep standard APNs setup and VoIP setup clearly documented as separate concerns.
 
-## Where Screenshots Make Sense
+## Screenshot Scope
 
-Screenshots are most useful for:
-- the Firebase Console screen where the APNs key is uploaded
-- the Apple Developer screen showing Team ID and Key ID
-
-Do not add screenshots for every step unless your team repeatedly gets blocked there.
+These screenshots are included because this is the part teams most often misconfigure. Avoid adding more unless they explain a different step.
