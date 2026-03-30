@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:http/http.dart' as http;
 
+import 'models/daakia_call_event.dart';
 import 'models/daakia_call_session.dart';
 import 'models/daakia_call_status.dart';
 import 'models/daakia_callkit_config.dart';
@@ -12,6 +15,8 @@ import 'services/daakia_fcm_service.dart';
 import 'services/daakia_ios_voip_service.dart';
 import 'services/daakia_notification_service.dart';
 import 'services/daakia_ringtone_service.dart';
+
+typedef DaakiaCallEventHandler = FutureOr<void> Function(DaakiaCallEvent event);
 
 class DaakiaCallkitFlutter {
   DaakiaCallkitFlutter({
@@ -28,6 +33,7 @@ class DaakiaCallkitFlutter {
   final DaakiaCallkitConfig _config;
   final DaakiaCallStateStore? _callStateStore;
   final DaakiaBackendClient _backendClient;
+  StreamSubscription<DaakiaCallEvent>? _callEventSubscription;
 
   DaakiaFcmService get fcm => DaakiaFcmService();
 
@@ -37,8 +43,88 @@ class DaakiaCallkitFlutter {
 
   DaakiaRingtoneService get ringtone => DaakiaRingtoneService();
 
+  Stream<DaakiaCallEvent> get events => Stream<DaakiaCallEvent>.multi((
+    StreamController<DaakiaCallEvent> controller,
+  ) {
+    final notificationSubscription = notifications.events.listen(
+      controller.add,
+      onError: controller.addError,
+    );
+    final voipSubscription = voip.events
+        .map(DaakiaCallEvent.fromVoipEvent)
+        .listen(
+          controller.add,
+          onError: controller.addError,
+        );
+
+    controller.onCancel = () async {
+      await notificationSubscription.cancel();
+      await voipSubscription.cancel();
+    };
+  });
+
   bool get supportsRealtimeCallState => _callStateStore != null;
 
+  /// Initializes the SDK listeners for incoming-call notifications and call events.
+  ///
+  /// Call this once during app startup before handling incoming calls.
+  ///
+  /// [onIncomingCall] is invoked when the SDK receives an incoming-call payload.
+  /// [onCallEvent] provides typed lifecycle updates such as accepted, declined,
+  /// ended, and timed out.
+  ///
+  /// The more specific callbacks remain available for integrations that prefer
+  /// separate handlers for each call state.
+  Future<void> initialize({
+    DaakiaIncomingCallHandler? onIncomingCall,
+    DaakiaCallEventHandler? onCallEvent,
+    DaakiaIncomingCallHandler? onCallAccepted,
+    DaakiaIncomingCallHandler? onCallDeclined,
+    DaakiaIncomingCallHandler? onCallEnded,
+    DaakiaIncomingCallHandler? onCallTimedOut,
+  }) async {
+    await notifications.initialize(
+      onIncomingCall: onIncomingCall,
+    );
+
+    await _callEventSubscription?.cancel();
+    if (onCallEvent == null &&
+        onCallAccepted == null &&
+        onCallDeclined == null &&
+        onCallEnded == null &&
+        onCallTimedOut == null) {
+      return;
+    }
+
+    _callEventSubscription = events.listen((DaakiaCallEvent event) async {
+      await onCallEvent?.call(event);
+
+      switch (event.type) {
+        case DaakiaCallEventType.accepted:
+          await onCallAccepted?.call(event.call);
+          return;
+        case DaakiaCallEventType.declined:
+          await onCallDeclined?.call(event.call);
+          return;
+        case DaakiaCallEventType.ended:
+          await onCallEnded?.call(event.call);
+          return;
+        case DaakiaCallEventType.timedOut:
+          await onCallTimedOut?.call(event.call);
+          return;
+        case DaakiaCallEventType.incoming:
+        case DaakiaCallEventType.unknown:
+          return;
+      }
+    });
+  }
+
+  /// Resolves the backend `config_name` value for the target platform.
+  ///
+  /// Current behavior:
+  /// - Android returns `prod`
+  /// - iOS sandbox returns `dev`
+  /// - iOS production returns `prod`
   String resolveConfigName({
     required DaakiaPlatform platform,
     bool? isIosSandbox,
@@ -49,6 +135,13 @@ class DaakiaCallkitFlutter {
     );
   }
 
+  /// Registers a device token with the Daakia backend.
+  ///
+  /// Use this when you already have the push token and want full control over
+  /// the registration flow.
+  ///
+  /// On iOS, [voipToken] can also be provided so the backend stores both the
+  /// standard push token and the VoIP token together.
   Future<DaakiaDeviceTokenRecord> registerCurrentDevice({
     required String username,
     required String token,
@@ -63,7 +156,16 @@ class DaakiaCallkitFlutter {
     );
   }
 
-  Future<DaakiaDeviceTokenRecord?> registerCurrentFcmDevice({
+  /// Fetches the current FCM token and registers the current push device.
+  ///
+  /// This is the recommended high-level registration helper for most apps.
+  ///
+  /// The method always fetches the current Firebase Messaging token first.
+  /// On iOS, [voipToken] can optionally be attached in the same backend request.
+  /// On Android, [voipToken] should be omitted or left `null`.
+  ///
+  /// Returns `null` when the FCM token is unavailable.
+  Future<DaakiaDeviceTokenRecord?> registerCurrentPushDevice({
     required String username,
     required DaakiaPlatform platform,
     String? voipToken,
@@ -82,6 +184,25 @@ class DaakiaCallkitFlutter {
     );
   }
 
+  @Deprecated(
+    'Use registerCurrentPushDevice(...) instead. '
+    'This method still fetches the current FCM token and can optionally attach the iOS VoIP token.',
+  )
+  Future<DaakiaDeviceTokenRecord?> registerCurrentFcmDevice({
+    required String username,
+    required DaakiaPlatform platform,
+    String? voipToken,
+    bool requestApplePermission = true,
+  }) {
+    return registerCurrentPushDevice(
+      username: username,
+      platform: platform,
+      voipToken: voipToken,
+      requestApplePermission: requestApplePermission,
+    );
+  }
+
+  /// Fetches the currently registered device token record for a user and platform.
   Future<DaakiaDeviceTokenRecord> getRegisteredDeviceToken({
     required String username,
     required DaakiaPlatform platform,
@@ -92,6 +213,12 @@ class DaakiaCallkitFlutter {
     );
   }
 
+  /// Triggers an incoming-call notification directly to a specific device token.
+  ///
+  /// Use this when you already know the destination device token.
+  ///
+  /// The backend `config_name` is resolved automatically from [platform] and
+  /// the optional iOS sandbox flag.
   Future<DaakiaPushResult> startCallByToken({
     required String token,
     required DaakiaPlatform platform,
@@ -113,6 +240,12 @@ class DaakiaCallkitFlutter {
     );
   }
 
+  /// Triggers an incoming-call notification by backend username lookup.
+  ///
+  /// Use this when the backend should resolve the target device tokens for the
+  /// destination user.
+  ///
+  /// If [configName] is not provided, the SDK resolves it automatically.
   Future<DaakiaPushResult> startCallByUsername({
     required String username,
     required String title,
@@ -131,16 +264,22 @@ class DaakiaCallkitFlutter {
             platform: DaakiaPlatform.ios,
             isIosSandbox: isIosSandbox,
           ),
-      data: data,
+          data: data,
     );
   }
 
+  /// Initializes the iOS VoIP bridge and returns the current VoIP token if available.
+  ///
+  /// This is only relevant for iOS PushKit / CallKit integrations.
   Future<String?> initializeVoip({
     Future<void> Function(String token)? onVoipTokenUpdated,
   }) {
     return voip.initialize(onVoipTokenUpdated: onVoipTokenUpdated);
   }
 
+  /// Watches realtime state updates for a call when a call-state store is configured.
+  ///
+  /// When no store is configured, this returns a stream containing a single `null`.
   Stream<DaakiaCallSession?> watchCall(String callId) {
     final store = _callStateStore;
     if (store == null) {
@@ -149,12 +288,21 @@ class DaakiaCallkitFlutter {
     return store.watchCall(callId);
   }
 
+  /// Saves the initial call session into the configured realtime call-state store.
+  ///
+  /// Does nothing when no call-state store is configured.
   Future<void> saveCallSession(DaakiaCallSession session) async {
     final store = _callStateStore;
     if (store == null) return;
     await store.saveSession(session);
   }
 
+  /// Updates the local realtime call status in the configured call-state store.
+  ///
+  /// This is useful for accept, reject, missed, or ended transitions when using
+  /// Firestore or another realtime state adapter.
+  ///
+  /// Does nothing when no call-state store is configured.
   Future<void> updateLocalCallStatus({
     required String callId,
     required DaakiaCallStatus status,
@@ -168,18 +316,6 @@ class DaakiaCallkitFlutter {
       status: status,
       actorId: actorId,
       reason: reason,
-    );
-  }
-
-  Future<void> updateBackendCallStatus({
-    required String callId,
-    required DaakiaCallStatus status,
-    String? actorId,
-    String? reason,
-  }) {
-    throw UnimplementedError(
-      'Backend call status API is not available yet. '
-      'Pending backend endpoint for callId=$callId status=${status.value} actorId=$actorId reason=$reason.',
     );
   }
 }

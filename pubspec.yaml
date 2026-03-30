@@ -1,7 +1,7 @@
 name: daakia_callkit_flutter
-description: "Callkit Flutter package by Daakia"
-version: 0.0.1
-homepage:
+description: "Callkit Flutter package by Daakia which helps flutter apps integrate Daakia-backed incoming call signaling for Android and iOS."
+version: 1.0.0
+homepage: https://github.com/Daakia-Org/daakia_callkit_flutter
 
 environment:
   sdk: ^3.9.0
@@ -15,7 +15,7 @@ dependencies:
   firebase_messaging: ^16.0.0
   flutter_local_notifications: ^19.4.1
   http: ^1.5.0
-  wakelock_plus: ^1.4.0
+  wakelock_plus: ^1.3.2
 
 dev_dependencies:
   flutter_test:
@@ -29,6 +29,9 @@ dev_dependencies:
 flutter:
   plugin:
     platforms:
+      android:
+        package: com.daakia.callkit_flutter
+        pluginClass: DaakiaCallkitFlutterPlugin
       ios:
         pluginClass: DaakiaCallkitFlutterPlugin
 

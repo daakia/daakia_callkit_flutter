@@ -1,17 +1,50 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:callkit/secret/secret_credential.dart';
 import 'package:daakia_callkit_flutter/daakia_callkit_flutter.dart';
+import 'package:daakia_vc_flutter_sdk/daakia_vc_flutter_sdk.dart';
+import 'package:daakia_vc_flutter_sdk/model/daakia_meeting_configuration.dart';
+import 'package:daakia_vc_flutter_sdk/model/participant_config.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import 'firebase_options.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  }
+
+  if (message.data.isEmpty) return;
+
+  final notifications = DaakiaNotificationService();
+  await notifications.initialize();
+  await notifications.showIncomingCallNotificationFromData(
+    Map<String, dynamic>.from(message.data),
+  );
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   FirebaseInitResult firebaseState = const FirebaseInitResult.notInitialized();
 
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
     firebaseState = const FirebaseInitResult.success();
   } catch (error) {
     firebaseState = FirebaseInitResult.failed(error.toString());
@@ -75,16 +108,18 @@ class _DemoHomePageState extends State<DemoHomePage> {
   bool _firestoreEnabled = false;
   bool _sdkReady = false;
   String _log = '';
+  String? _latestFcmToken;
+  String? _latestVoipToken;
 
   DaakiaCallkitFlutter? _sdk;
+  StreamSubscription<RemoteMessage>? _foregroundMessageSubscription;
+  StreamSubscription<RemoteMessage>? _messageOpenedAppSubscription;
 
   @override
   void initState() {
     super.initState();
-    _baseUrlController = TextEditingController(
-      text: 'https://stag-api.daakia.co.in',
-    );
-    _secretController = TextEditingController();
+    _baseUrlController = TextEditingController(text: SecretCredential.baseUrl);
+    _secretController = TextEditingController(text: SecretCredential.secretKey);
     _currentUsernameController = TextEditingController();
     _targetUsernameController = TextEditingController();
     _directTokenController = TextEditingController();
@@ -105,6 +140,8 @@ class _DemoHomePageState extends State<DemoHomePage> {
     _callIdController.dispose();
     _callerNameController.dispose();
     _phoneController.dispose();
+    _foregroundMessageSubscription?.cancel();
+    _messageOpenedAppSubscription?.cancel();
     super.dispose();
   }
 
@@ -112,6 +149,32 @@ class _DemoHomePageState extends State<DemoHomePage> {
     setState(() {
       _log = '[${DateTime.now().toIso8601String()}] $value\n$_log';
     });
+  }
+
+  void _clearLog() {
+    setState(() {
+      _log = '';
+    });
+  }
+
+  String _describeSdkError(Object error) {
+    if (error.runtimeType.toString() == 'DaakiaBackendException') {
+      return error.toString();
+    }
+    return '$error';
+  }
+
+  Future<void> _copyToken(String label, String? value) async {
+    if (value == null || value.isEmpty) {
+      _appendLog('$label is not available to copy.');
+      return;
+    }
+
+    await Clipboard.setData(ClipboardData(text: value));
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$label copied')));
   }
 
   DaakiaCallkitFlutter _buildSdk() {
@@ -149,6 +212,199 @@ class _DemoHomePageState extends State<DemoHomePage> {
     };
   }
 
+  Future<void> _bindIncomingHandlers(DaakiaCallkitFlutter sdk) async {
+    await _foregroundMessageSubscription?.cancel();
+    _foregroundMessageSubscription = FirebaseMessaging.onMessage.listen((
+      RemoteMessage message,
+    ) async {
+      if (message.data.isEmpty) {
+        _appendLog('Received foreground push without data payload.');
+        return;
+      }
+
+      final payload = Map<String, dynamic>.from(message.data);
+      _appendLog('Received foreground FCM payload: ${jsonEncode(payload)}');
+      await sdk.notifications.showIncomingCallNotificationFromData(payload);
+    });
+
+    await _messageOpenedAppSubscription?.cancel();
+    _messageOpenedAppSubscription = FirebaseMessaging.onMessageOpenedApp.listen(
+      (RemoteMessage message) async {
+        if (message.data.isEmpty) {
+          _appendLog('Opened app from push without data payload.');
+          return;
+        }
+
+        final payload = DaakiaIncomingCallPayload.fromMap(
+          Map<String, dynamic>.from(message.data),
+        );
+        _appendLog('Opened app from push for call ${payload.callId}');
+        await _openIncomingCallFromPayload(payload);
+      },
+    );
+
+  }
+
+  Future<void> _handleCallEvent(DaakiaCallEvent event) async {
+    _appendLog(
+      'Call event [${event.platform.name}]: '
+      '${event.method} ${jsonEncode(event.payload)}',
+    );
+
+    final payload = event.call;
+    final sdk = _sdk;
+
+    switch (event.type) {
+      case DaakiaCallEventType.accepted:
+        _joinCall(payload.callId, payload.title);
+        if (sdk != null && sdk.supportsRealtimeCallState) {
+          await sdk.updateLocalCallStatus(
+            callId: payload.callId,
+            status: DaakiaCallStatus.accepted,
+            actorId: payload.receiverId,
+          );
+        }
+        return;
+      case DaakiaCallEventType.declined:
+        if (sdk != null && sdk.supportsRealtimeCallState) {
+          await sdk.updateLocalCallStatus(
+            callId: payload.callId,
+            status: DaakiaCallStatus.rejected,
+            actorId: payload.receiverId,
+          );
+        }
+        return;
+      case DaakiaCallEventType.timedOut:
+        if (sdk != null && sdk.supportsRealtimeCallState) {
+          await sdk.updateLocalCallStatus(
+            callId: payload.callId,
+            status: DaakiaCallStatus.missed,
+            actorId: payload.receiverId,
+          );
+        }
+        return;
+      case DaakiaCallEventType.incoming:
+      case DaakiaCallEventType.ended:
+      case DaakiaCallEventType.unknown:
+      return;
+    }
+  }
+
+  Future<void> _joinCall(String? callUid, String? callerName) async {
+    if (callUid == null) return;
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            DaakiaVideoConferenceWidget(
+              meetingId: callUid,
+              secretKey: SecretCredential.daakiaVcSecretKey,
+              isHost: false,
+              configuration:
+              DaakiaMeetingConfiguration(
+                  participantNameConfig:
+                  ParticipantNameConfig(
+                    name: callerName ?? "Unknown",
+                    isEditable: false,
+                  ),
+                  skipPreJoinPage: true,
+                  enableCameraByDefault: true,
+                  enableMicrophoneByDefault: true
+              ),
+            ),
+      ),
+    );
+    await _sdk?.voip.endCall(callUid);
+  }
+
+  Future<void> _fetchFcmToken() async {
+    final sdk = _sdk;
+    if (sdk == null) {
+      _appendLog('Initialize SDK first.');
+      return;
+    }
+    if (!widget.firebaseState.initialized) {
+      _appendLog(
+        'Firebase is not initialized. Add GoogleService-Info.plist / google-services.json first.',
+      );
+      return;
+    }
+
+    final token = await sdk.fcm.getFcmToken();
+    setState(() {
+      _latestFcmToken = token;
+    });
+
+    if (token == null || token.isEmpty) {
+      _appendLog('FCM token is not available.');
+      return;
+    }
+
+    _appendLog('Fetched FCM token: $token');
+  }
+
+  Future<void> _requestAndroidNotificationPermission() async {
+    if (!Platform.isAndroid) return;
+    if (!widget.firebaseState.initialized) return;
+
+    final settings = await FirebaseMessaging.instance.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    _appendLog(
+      'Android notification permission: '
+      '${settings.authorizationStatus.name}',
+    );
+  }
+
+  Future<void> _ensureAndroidFullScreenIntentAccess(
+    DaakiaCallkitFlutter sdk,
+  ) async {
+    if (!Platform.isAndroid) return;
+
+    final canUseFullScreenIntent =
+        await sdk.notifications.canUseFullScreenIntent();
+    _appendLog(
+      'Android full-screen intent access: '
+      '${canUseFullScreenIntent ? 'allowed' : 'disabled'}',
+    );
+    if (canUseFullScreenIntent || !mounted) return;
+
+    final openSettings = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Enable Full-Screen Calls'),
+          content: const Text(
+            'Lock-screen incoming call UI may not appear until full-screen '
+            'notifications are enabled for this app.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Later'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Open Settings'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (openSettings == true) {
+      final opened = await sdk.notifications.openFullScreenIntentSettings();
+      _appendLog(
+        opened
+            ? 'Opened full-screen intent settings.'
+            : 'Could not open full-screen intent settings.',
+      );
+    }
+  }
+
   Future<void> _initializeSdk() async {
     if (_baseUrlController.text.trim().isEmpty ||
         _secretController.text.trim().isEmpty) {
@@ -157,15 +413,24 @@ class _DemoHomePageState extends State<DemoHomePage> {
     }
 
     final sdk = _buildSdk();
-    await sdk.notifications.initialize(
+    await _requestAndroidNotificationPermission();
+    await sdk.initialize(
       onIncomingCall: _openIncomingCallFromPayload,
-      onAcceptCall: (payload) async {
-        _appendLog('Accepted call ${payload.callId}');
-      },
-      onRejectCall: (payload) async {
-        _appendLog('Rejected call ${payload.callId}');
-      },
+      onCallEvent: _handleCallEvent,
     );
+    await _ensureAndroidFullScreenIntentAccess(sdk);
+    await _bindIncomingHandlers(sdk);
+
+    final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+    if (initialMessage != null && initialMessage.data.isNotEmpty) {
+      final payload = DaakiaIncomingCallPayload.fromMap(
+        Map<String, dynamic>.from(initialMessage.data),
+      );
+      _appendLog('Launched from push for call ${payload.callId}');
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _openIncomingCallFromPayload(payload);
+      });
+    }
 
     _sdk = sdk;
     setState(() {
@@ -185,10 +450,16 @@ class _DemoHomePageState extends State<DemoHomePage> {
 
     final token = await sdk.initializeVoip(
       onVoipTokenUpdated: (String token) async {
+        setState(() {
+          _latestVoipToken = token;
+        });
         _appendLog('VoIP token updated: $token');
       },
     );
 
+    setState(() {
+      _latestVoipToken = token;
+    });
     _appendLog('VoIP initialization finished. token=${token ?? 'null'}');
   }
 
@@ -209,19 +480,28 @@ class _DemoHomePageState extends State<DemoHomePage> {
       return;
     }
 
-    final result = await sdk.registerCurrentFcmDevice(
-      username: _currentUsernameController.text.trim(),
-      platform: Theme.of(context).platform == TargetPlatform.iOS
-          ? DaakiaPlatform.ios
-          : DaakiaPlatform.android,
-    );
+    try {
+      final result = await sdk.registerCurrentPushDevice(
+        username: _currentUsernameController.text.trim(),
+        platform: Theme.of(context).platform == TargetPlatform.iOS
+            ? DaakiaPlatform.ios
+            : DaakiaPlatform.android,
+        voipToken: _latestVoipToken,
+      );
 
-    if (result == null) {
-      _appendLog('FCM token was not available.');
-      return;
+      if (result == null) {
+        _appendLog('FCM token was not available.');
+        return;
+      }
+
+      setState(() {
+        _latestFcmToken = result.token;
+        _latestVoipToken = result.voipToken ?? _latestVoipToken;
+      });
+      _appendLog('Registered push device for ${result.username}.');
+    } catch (error) {
+      _appendLog('Register push device failed: ${_describeSdkError(error)}');
     }
-
-    _appendLog('Registered FCM token for ${result.username}.');
   }
 
   Future<void> _triggerByUsername() async {
@@ -235,14 +515,18 @@ class _DemoHomePageState extends State<DemoHomePage> {
       return;
     }
 
-    final result = await sdk.startCallByUsername(
-      username: _targetUsernameController.text.trim(),
-      title: _callerNameController.text.trim(),
-      message: 'Incoming call',
-      data: _incomingPayloadMap(),
-    );
+    try {
+      final result = await sdk.startCallByUsername(
+        username: _targetUsernameController.text.trim(),
+        title: _callerNameController.text.trim(),
+        message: 'Incoming call',
+        data: _incomingPayloadMap(),
+      );
 
-    _appendLog('Triggered by username: ${jsonEncode(result.data)}');
+      _appendLog('Triggered by username: ${jsonEncode(result.data)}');
+    } catch (error) {
+      _appendLog('Trigger by username failed: ${_describeSdkError(error)}');
+    }
   }
 
   Future<void> _triggerByToken() async {
@@ -256,17 +540,21 @@ class _DemoHomePageState extends State<DemoHomePage> {
       return;
     }
 
-    final result = await sdk.startCallByToken(
-      token: _directTokenController.text.trim(),
-      platform: Theme.of(context).platform == TargetPlatform.iOS
-          ? DaakiaPlatform.ios
-          : DaakiaPlatform.android,
-      title: _callerNameController.text.trim(),
-      message: 'Incoming call',
-      data: _incomingPayloadMap(),
-    );
+    try {
+      final result = await sdk.startCallByToken(
+        token: _directTokenController.text.trim(),
+        platform: Theme.of(context).platform == TargetPlatform.iOS
+            ? DaakiaPlatform.ios
+            : DaakiaPlatform.android,
+        title: _callerNameController.text.trim(),
+        message: 'Incoming call',
+        data: _incomingPayloadMap(),
+      );
 
-    _appendLog('Triggered by token: ${jsonEncode(result.data)}');
+      _appendLog('Triggered by token: ${jsonEncode(result.data)}');
+    } catch (error) {
+      _appendLog('Trigger by token failed: ${_describeSdkError(error)}');
+    }
   }
 
   Future<void> _simulateIncomingCall() async {
@@ -287,6 +575,7 @@ class _DemoHomePageState extends State<DemoHomePage> {
           payload: payload,
           onAccept: (DaakiaIncomingCallPayload payload) async {
             _appendLog('Incoming screen accept: ${payload.callId}');
+            _joinCall(payload.callId, payload.title);
             final sdk = _sdk;
             if (sdk != null && sdk.supportsRealtimeCallState) {
               await sdk.updateLocalCallStatus(
@@ -338,6 +627,18 @@ class _DemoHomePageState extends State<DemoHomePage> {
             firestoreEnabled: _firestoreEnabled,
           ),
           const SizedBox(height: 16),
+          _TokenCard(
+            label: 'Current FCM Token',
+            value: _latestFcmToken,
+            onCopy: () => _copyToken('FCM token', _latestFcmToken),
+          ),
+          const SizedBox(height: 12),
+          _TokenCard(
+            label: 'Current iOS VoIP Token',
+            value: _latestVoipToken,
+            onCopy: () => _copyToken('VoIP token', _latestVoipToken),
+          ),
+          const SizedBox(height: 16),
           TextField(
             controller: _baseUrlController,
             decoration: const InputDecoration(
@@ -363,7 +664,7 @@ class _DemoHomePageState extends State<DemoHomePage> {
             },
             title: const Text('Enable Firestore adapter'),
             subtitle: const Text(
-              'Optional realtime call-state sync for accept/reject/cancel/missed.',
+              'Experimental realtime call-state sync for accept/reject/cancel/missed.',
             ),
           ),
           const SizedBox(height: 12),
@@ -386,7 +687,7 @@ class _DemoHomePageState extends State<DemoHomePage> {
           TextField(
             controller: _directTokenController,
             decoration: const InputDecoration(
-              labelText: 'Direct device token',
+              labelText: 'Direct device / VoIP token',
               border: OutlineInputBorder(),
             ),
           ),
@@ -428,8 +729,12 @@ class _DemoHomePageState extends State<DemoHomePage> {
                 child: const Text('Initialize VoIP'),
               ),
               FilledButton(
+                onPressed: _fetchFcmToken,
+                child: const Text('Fetch FCM Token'),
+              ),
+              FilledButton(
                 onPressed: _registerFcm,
-                child: const Text('Register FCM'),
+                child: const Text('Register Push Device'),
               ),
               FilledButton(
                 onPressed: _triggerByUsername,
@@ -446,9 +751,19 @@ class _DemoHomePageState extends State<DemoHomePage> {
             ],
           ),
           const SizedBox(height: 24),
-          const Text(
-            'Event Log',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+          Row(
+            children: <Widget>[
+              const Expanded(
+                child: Text(
+                  'Event Log',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                ),
+              ),
+              TextButton(
+                onPressed: _clearLog,
+                child: const Text('Clear Log'),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           Container(
@@ -505,6 +820,52 @@ class _StatusCard extends StatelessWidget {
                 style: const TextStyle(color: Colors.red),
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TokenCard extends StatelessWidget {
+  const _TokenCard({
+    required this.label,
+    required this.value,
+    required this.onCopy,
+  });
+
+  final String label;
+  final String? value;
+  final VoidCallback onCopy;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    label,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                IconButton(
+                  onPressed: onCopy,
+                  tooltip: 'Copy',
+                  icon: const Icon(Icons.copy_rounded),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            SelectableText(
+              value == null || value!.isEmpty ? 'Not available yet.' : value!,
+              style: const TextStyle(fontFamily: 'monospace'),
+            ),
           ],
         ),
       ),

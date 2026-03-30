@@ -20,6 +20,6 @@ class DaakiaCallkitConfig {
     }
 
     final sandbox = isIosSandbox ?? defaultIosSandbox;
-    return sandbox ? 'stag' : 'prod';
+    return sandbox ? 'dev' : 'prod';
   }
 }

@@ -10,12 +10,13 @@ class DaakiaPushResult {
   final Map<String, dynamic> data;
 
   factory DaakiaPushResult.fromJson(Map<String, dynamic> json) {
+    final rawData = json['data'];
     return DaakiaPushResult(
       success: (json['success'] as num? ?? 0) == 1,
       message: json['message']?.toString() ?? '',
-      data: Map<String, dynamic>.from(
-        json['data'] as Map<dynamic, dynamic>? ?? const <String, dynamic>{},
-      ),
+      data: rawData is Map
+          ? Map<String, dynamic>.from(rawData)
+          : const <String, dynamic>{},
     );
   }
 }

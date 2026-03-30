@@ -13,7 +13,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>example</string>
+	<string>Daakia CallKit</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -49,6 +49,8 @@
 	<string>Example app uses your microphone for calls.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Example app uses your camera for calls.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Requires access to your photo library to allow you to select and share images during calls or chats.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>

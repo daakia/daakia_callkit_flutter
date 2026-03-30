@@ -3,6 +3,7 @@ library daakia_callkit_flutter;
 export 'src/daakia_callkit_flutter.dart';
 export 'src/models/daakia_call_session.dart';
 export 'src/models/daakia_call_status.dart';
+export 'src/models/daakia_call_event.dart';
 export 'src/models/daakia_callkit_config.dart';
 export 'src/models/daakia_caller.dart';
 export 'src/models/daakia_device_token_record.dart';
