@@ -107,20 +107,20 @@ await sdk.startCallByUsername(
 ## Documentation
 
 Start here:
-- [Getting started](docs/getting-started.md)
-- [Client handoff checklist](docs/client-handoff.md)
+- [Getting started](doc/getting-started.md)
+- [Client handoff checklist](doc/client-handoff.md)
 
 Platform setup:
-- [Firebase setup](docs/firebase-setup.md)
-- [Android setup](docs/android-setup.md)
-- [iOS setup](docs/ios-setup.md)
-- [APNs and Firebase linking](docs/ios-apns-firebase-linking.md)
+- [Firebase setup](doc/firebase-setup.md)
+- [Android setup](doc/android-setup.md)
+- [iOS setup](doc/ios-setup.md)
+- [APNs and Firebase linking](doc/ios-apns-firebase-linking.md)
 
 SDK usage:
-- [SDK usage](docs/usage.md)
-- [Optional Firestore integration](docs/firestore-optional.md)
-- [Optional call UI / call joining integration](docs/call-ui-integration.md)
-- [Troubleshooting](docs/troubleshooting.md)
+- [SDK usage](doc/usage.md)
+- [Optional Firestore integration](doc/firestore-optional.md)
+- [Optional call UI / call joining integration](doc/call-ui-integration.md)
+- [Troubleshooting](doc/troubleshooting.md)
 
 ## Important Notes
 
