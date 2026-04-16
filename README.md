@@ -67,7 +67,7 @@ Add the package:
 
 ```yaml
 dependencies:
-  daakia_callkit_flutter: ^1.0.0
+  daakia_callkit_flutter: ^1.1.0
 ```
 
 Initialize the SDK:
