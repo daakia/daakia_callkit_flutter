@@ -1,5 +1,21 @@
 # CHANGELOG
 
+## 1.1.0 - (2026-04)
+
+Added call event reporting features for integrations using `daakia_vc_flutter_sdk`.
+
+Included in this release:
+- `sendCallEvent()` method to report call lifecycle events (accept, reject, end, timeout) to the Daakia backend
+- `configureCallEventFallback()` method to configure fallback events when the app is closed
+- `clearSentCallEventCache()` method to reset the sent event cache for re-sending events
+- `DaakiaCallEventAction` enum for typed call event actions
+- Updated documentation in `doc/usage.md` with call event reporting examples
+
+Notes:
+- Call event methods are designed for use with `daakia_vc_flutter_sdk` for actual meeting join flow.
+- Fallback events allow webhook delivery even when the app process is not running.
+- Metadata in events is flexible and optional.
+
 ## 1.0.0 - (2026-03)
 
 Initial release of `daakia_callkit_flutter`.
