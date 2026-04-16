@@ -274,6 +274,19 @@ class DaakiaCallkitFlutter {
     return voip.initialize(onVoipTokenUpdated: onVoipTokenUpdated);
   }
 
+  /// Sends a call lifecycle event to the Daakia backend.
+  ///
+  /// This method is intended for use when the app is managing the actual
+  /// call join flow, for example via `daakia_vc_flutter_sdk`, and needs to
+  /// report a user action such as accept, reject, join, end, or timeout.
+  ///
+  /// [meetingUid] identifies the call session, and [action] specifies which
+  /// webhook event should be delivered.
+  ///
+  /// Optional [metadata] is forwarded to the backend with the event payload.
+  ///
+  /// The event is only sent once per call action; duplicate deliveries are
+  /// prevented by the platform-specific sent-event cache.
   Future<void> sendCallEvent({
     required String meetingUid,
     required DaakiaCallEventAction action,
@@ -297,6 +310,17 @@ class DaakiaCallkitFlutter {
     await _markCallEventSent(meetingUid: meetingUid, action: action);
   }
 
+  /// Configures fallback call event actions for when the app is closed.
+  ///
+  /// This stores the selected [actions] and optional [metadata] so the
+  /// underlying Android or iOS bridge can emit call events later without the
+  /// app being active.
+  ///
+  /// Fallback metadata is captured at configuration time and cannot be
+  /// updated later while the app is closed. Use this when you need the call
+  /// event to be available even if the application process is not running.
+  ///
+  /// Pass an empty [actions] set to clear any previously configured fallback.
   Future<void> configureCallEventFallback({
     required Set<DaakiaCallEventAction> actions,
     Map<String, dynamic>? metadata,
@@ -340,6 +364,11 @@ class DaakiaCallkitFlutter {
     }
   }
 
+  /// Clears the platform-local cache of already sent call events.
+  ///
+  /// This should be used when you want to reset the sent-event state so that
+  /// `sendCallEvent` may be allowed to send the same action again for the
+  /// same meeting UID.
   Future<void> clearSentCallEventCache() async {
     if (DaakiaPlatform.current == DaakiaPlatform.android) {
       await DaakiaAndroidCallService().clearSentCallEventCache();
