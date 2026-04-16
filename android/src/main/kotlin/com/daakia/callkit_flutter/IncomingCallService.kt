@@ -21,6 +21,8 @@ import android.os.VibratorManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.Person
 import androidx.core.content.ContextCompat
+import java.net.HttpURLConnection
+import java.net.URL
 import org.json.JSONObject
 
 class IncomingCallService : Service() {
@@ -39,9 +41,13 @@ class IncomingCallService : Service() {
         const val EXTRA_ACTION_SOURCE = "actionSource"
 
         private const val CALL_CHANNEL_ID = "daakia_call_channel_native_v2"
+        private const val ACTION_CALL_ACCEPT = "call-accept"
+        private const val ACTION_CALL_REJECT = "call-reject"
+        private const val ACTION_CALL_TIMEOUT = "call-timeout"
         private const val ACTION_SOURCE_ACCEPT = "accept"
         private const val ACTION_SOURCE_INCOMING = "incoming"
         private const val DEFAULT_TIMEOUT_SECONDS = 30
+        private const val FALLBACK_DISPATCH_DELAY_MS = 1500L
 
         fun showIncomingCall(context: Context, payloadJson: String, timeoutSeconds: Int) {
             val intent = Intent(context, IncomingCallService::class.java).apply {
@@ -123,6 +129,7 @@ class IncomingCallService : Service() {
 
     private fun handleAccept() {
         val payload = currentPayloadMap() ?: return stopServiceState()
+        sendFallbackWebhookIfEnabled(payload, ACTION_CALL_ACCEPT)
         DaakiaCallkitFlutterPlugin.emitEvent("callAccepted", payload)
         launchHostApp(ACTION_SOURCE_ACCEPT)
         stopServiceState()
@@ -130,6 +137,7 @@ class IncomingCallService : Service() {
 
     private fun handleDecline() {
         val payload = currentPayloadMap() ?: return stopServiceState()
+        sendFallbackWebhookIfEnabled(payload, ACTION_CALL_REJECT)
         DaakiaCallkitFlutterPlugin.emitEvent("callDeclined", payload)
         stopServiceState()
     }
@@ -153,6 +161,7 @@ class IncomingCallService : Service() {
         if (payload != null) {
             val updatedPayload = HashMap(payload)
             updatedPayload["reason"] = "timeout"
+            sendFallbackWebhookIfEnabled(updatedPayload, ACTION_CALL_TIMEOUT)
             DaakiaCallkitFlutterPlugin.emitEvent("callEnded", updatedPayload)
         }
         stopServiceState()
@@ -347,6 +356,91 @@ class IncomingCallService : Service() {
     private fun payloadMap(payloadJson: String): Map<String, Any?> {
         val json = JSONObject(payloadJson)
         return jsonObjectToMap(json)
+    }
+
+    private fun sendFallbackWebhookIfEnabled(payload: Map<String, Any?>, action: String) {
+        val context = applicationContext
+        val config = DaakiaCallkitFlutterPlugin.fallbackConfig(context) ?: return
+        if (!config.actions.contains(action)) return
+
+        val meetingUid = payload["callId"]?.toString().orEmpty()
+        if (meetingUid.isBlank()) return
+        if (DaakiaCallkitFlutterPlugin.wasCallEventSent(context, meetingUid, action)) return
+
+        Thread {
+            runCatching {
+                Thread.sleep(FALLBACK_DISPATCH_DELAY_MS)
+                if (DaakiaCallkitFlutterPlugin.wasCallEventSent(context, meetingUid, action)) {
+                    return@runCatching
+                }
+                val metadata = buildFallbackMetadata(payload, config.metadataJson)
+                val requestBody = JSONObject().apply {
+                    put("meeting_uid", meetingUid)
+                    put(
+                        "data",
+                        JSONObject().apply {
+                            put("action", action)
+                            put("meta-data", metadata)
+                        }
+                    )
+                }
+
+                val connection = (URL(resolveWebhookUrl(config.baseUrl)).openConnection() as HttpURLConnection).apply {
+                    requestMethod = "POST"
+                    connectTimeout = 15000
+                    readTimeout = 15000
+                    doOutput = true
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("secret", config.secret)
+                }
+
+                connection.outputStream.bufferedWriter(Charsets.UTF_8).use { writer ->
+                    writer.write(requestBody.toString())
+                }
+
+                val responseCode = connection.responseCode
+                val responseText = (if (responseCode in 200..299) {
+                    connection.inputStream
+                } else {
+                    connection.errorStream
+                })?.bufferedReader()?.use { it.readText() }.orEmpty()
+
+                if (responseCode in 200..299 && responseText.isNotBlank()) {
+                    val responseJson = JSONObject(responseText)
+                    if (responseJson.optInt("success") == 1) {
+                        DaakiaCallkitFlutterPlugin.markCallEventSent(
+                            context,
+                            meetingUid,
+                            action
+                        )
+                    }
+                }
+                connection.disconnect()
+            }
+        }.start()
+    }
+
+    private fun resolveWebhookUrl(baseUrl: String): String {
+        return "${baseUrl.trimEnd('/')}/v2.0/rtc/call/webhook"
+    }
+
+    private fun buildFallbackMetadata(
+        payload: Map<String, Any?>,
+        metadataJson: String
+    ): JSONObject {
+        val metadata = runCatching { JSONObject(metadataJson) }.getOrElse { JSONObject() }
+        payload["callerId"]?.toString()?.takeIf { it.isNotBlank() }?.let {
+            metadata.put("caller_id", it)
+        }
+        payload["receiverId"]?.toString()?.takeIf { it.isNotBlank() }?.let {
+            metadata.put("receiver_id", it)
+        }
+        payload["callTimestamp"]?.toString()?.takeIf { it.isNotBlank() }?.let {
+            metadata.put("call_timestamp", it)
+        }
+        metadata.put("delivery_mode", "fallback")
+        metadata.put("platform", "android")
+        return metadata
     }
 
     private fun jsonObjectToMap(json: JSONObject): Map<String, Any?> {

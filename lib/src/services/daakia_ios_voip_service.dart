@@ -73,6 +73,85 @@ class DaakiaIosVoipService {
     }
   }
 
+  Future<void> configureCallEventFallback({
+    required String baseUrl,
+    required String secret,
+    required Set<String> actions,
+    Map<String, dynamic>? metadata,
+  }) async {
+    if (!Platform.isIOS) return;
+
+    try {
+      await _channel
+          .invokeMethod<void>('configureCallEventFallback', <String, dynamic>{
+            'baseUrl': baseUrl,
+            'secret': secret,
+            'actions': actions.toList(),
+            'metadata': metadata ?? <String, dynamic>{},
+          });
+    } catch (error) {
+      log(
+        '[DaakiaIosVoipService] Failed to configure call event fallback: $error',
+      );
+    }
+  }
+
+  Future<void> clearCallEventFallback() async {
+    if (!Platform.isIOS) return;
+
+    try {
+      await _channel.invokeMethod<void>('clearCallEventFallback');
+    } catch (error) {
+      log('[DaakiaIosVoipService] Failed to clear call event fallback: $error');
+    }
+  }
+
+  Future<bool> wasCallEventSent({
+    required String meetingUid,
+    required String action,
+  }) async {
+    if (!Platform.isIOS) return false;
+
+    try {
+      final result = await _channel.invokeMethod<bool>(
+        'wasCallEventSent',
+        <String, dynamic>{'meetingUid': meetingUid, 'action': action},
+      );
+      return result ?? false;
+    } catch (error) {
+      log('[DaakiaIosVoipService] Failed to check call event dedupe: $error');
+      return false;
+    }
+  }
+
+  Future<void> markCallEventSent({
+    required String meetingUid,
+    required String action,
+  }) async {
+    if (!Platform.isIOS) return;
+
+    try {
+      await _channel.invokeMethod<void>('markCallEventSent', <String, dynamic>{
+        'meetingUid': meetingUid,
+        'action': action,
+      });
+    } catch (error) {
+      log('[DaakiaIosVoipService] Failed to mark call event sent: $error');
+    }
+  }
+
+  Future<void> clearSentCallEventCache() async {
+    if (!Platform.isIOS) return;
+
+    try {
+      await _channel.invokeMethod<void>('clearSentCallEventCache');
+    } catch (error) {
+      log(
+        '[DaakiaIosVoipService] Failed to clear sent call event cache: $error',
+      );
+    }
+  }
+
   Future<dynamic> _handleNativeCall(
     MethodCall call, {
     FutureOr<void> Function(String token)? onVoipTokenUpdated,

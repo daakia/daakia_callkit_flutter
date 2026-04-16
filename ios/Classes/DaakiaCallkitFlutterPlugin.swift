@@ -5,6 +5,12 @@ import UIKit
 
 public class DaakiaCallkitFlutterPlugin: NSObject, FlutterPlugin, PKPushRegistryDelegate, CXProviderDelegate {
   private static let channelName = "daakia_callkit_flutter/voip"
+  private static let fallbackBaseUrlKey = "daakia_callkit_fallback_base_url"
+  private static let fallbackSecretKey = "daakia_callkit_fallback_secret"
+  private static let fallbackActionsKey = "daakia_callkit_fallback_actions"
+  private static let fallbackMetadataKey = "daakia_callkit_fallback_metadata"
+  private static let sentEventsKey = "daakia_callkit_sent_events"
+  private static let fallbackDispatchDelay: TimeInterval = 1.5
 
   private var voipRegistry: PKPushRegistry?
   private var voipToken: String?
@@ -67,6 +73,36 @@ public class DaakiaCallkitFlutterPlugin: NSObject, FlutterPlugin, PKPushRegistry
         setCallConnected(callId: callId)
       }
       result(nil)
+    case "configureCallEventFallback":
+      if let args = call.arguments as? [String: Any] {
+        configureCallEventFallback(args)
+      }
+      result(nil)
+    case "clearCallEventFallback":
+      clearCallEventFallback()
+      result(nil)
+    case "wasCallEventSent":
+      if
+        let args = call.arguments as? [String: Any],
+        let meetingUid = args["meetingUid"] as? String,
+        let action = args["action"] as? String
+      {
+        result(wasCallEventSent(meetingUid: meetingUid, action: action))
+      } else {
+        result(false)
+      }
+    case "markCallEventSent":
+      if
+        let args = call.arguments as? [String: Any],
+        let meetingUid = args["meetingUid"] as? String,
+        let action = args["action"] as? String
+      {
+        markCallEventSent(meetingUid: meetingUid, action: action)
+      }
+      result(nil)
+    case "clearSentCallEventCache":
+      clearSentCallEventCache()
+      result(nil)
     default:
       result(FlutterMethodNotImplemented)
     }
@@ -104,6 +140,42 @@ public class DaakiaCallkitFlutterPlugin: NSObject, FlutterPlugin, PKPushRegistry
     }
   }
 
+  private func configureCallEventFallback(_ args: [String: Any]) {
+    UserDefaults.standard.set(args["baseUrl"] as? String, forKey: Self.fallbackBaseUrlKey)
+    UserDefaults.standard.set(args["secret"] as? String, forKey: Self.fallbackSecretKey)
+    UserDefaults.standard.set(args["actions"] as? [String] ?? [], forKey: Self.fallbackActionsKey)
+    UserDefaults.standard.set(args["metadata"] as? [String: Any] ?? [:], forKey: Self.fallbackMetadataKey)
+  }
+
+  private func clearCallEventFallback() {
+    UserDefaults.standard.removeObject(forKey: Self.fallbackBaseUrlKey)
+    UserDefaults.standard.removeObject(forKey: Self.fallbackSecretKey)
+    UserDefaults.standard.removeObject(forKey: Self.fallbackActionsKey)
+    UserDefaults.standard.removeObject(forKey: Self.fallbackMetadataKey)
+  }
+
+  private func wasCallEventSent(meetingUid: String, action: String) -> Bool {
+    let sentEvents = UserDefaults.standard.array(forKey: Self.sentEventsKey) as? [String] ?? []
+    return sentEvents.contains("\(meetingUid)::\(action)")
+  }
+
+  private func markCallEventSent(meetingUid: String, action: String) {
+    var sentEvents = UserDefaults.standard.array(forKey: Self.sentEventsKey) as? [String] ?? []
+    let key = "\(meetingUid)::\(action)"
+    if sentEvents.contains(key) {
+      return
+    }
+    sentEvents.append(key)
+    if sentEvents.count > 100 {
+      sentEvents = Array(sentEvents.suffix(100))
+    }
+    UserDefaults.standard.set(sentEvents, forKey: Self.sentEventsKey)
+  }
+
+  private func clearSentCallEventCache() {
+    UserDefaults.standard.removeObject(forKey: Self.sentEventsKey)
+  }
+
   private func normalizePayload(_ payload: [AnyHashable: Any]) -> [String: Any] {
     var normalized: [String: Any] = [:]
 
@@ -138,6 +210,77 @@ public class DaakiaCallkitFlutterPlugin: NSObject, FlutterPlugin, PKPushRegistry
 
   private func payloadForCallId(_ callId: String) -> [String: Any] {
     callPayloads[callId] ?? ["callId": callId, "type": "incoming_call"]
+  }
+
+  private func fallbackActions() -> [String] {
+    UserDefaults.standard.array(forKey: Self.fallbackActionsKey) as? [String] ?? []
+  }
+
+  private func fallbackMetadata() -> [String: Any] {
+    UserDefaults.standard.dictionary(forKey: Self.fallbackMetadataKey) ?? [:]
+  }
+
+  private func sendFallbackWebhookIfEnabled(callId: String, action: String, payload: [String: Any]) {
+    let baseUrl = UserDefaults.standard.string(forKey: Self.fallbackBaseUrlKey) ?? ""
+    let secret = UserDefaults.standard.string(forKey: Self.fallbackSecretKey) ?? ""
+    guard !baseUrl.isEmpty, !secret.isEmpty else { return }
+    guard fallbackActions().contains(action) else { return }
+    guard !wasCallEventSent(meetingUid: callId, action: action) else { return }
+
+    let sanitizedBaseUrl = baseUrl.hasSuffix("/") ? String(baseUrl.dropLast()) : baseUrl
+    guard let url = URL(string: "\(sanitizedBaseUrl)/v2.0/rtc/call/webhook") else {
+      return
+    }
+
+    var metadata = fallbackMetadata()
+    if let callerId = payload["callerId"] as? String, !callerId.isEmpty {
+      metadata["caller_id"] = callerId
+    }
+    if let receiverId = payload["receiverId"] as? String, !receiverId.isEmpty {
+      metadata["receiver_id"] = receiverId
+    }
+    if let callTimestamp = payload["callTimestamp"] as? String, !callTimestamp.isEmpty {
+      metadata["call_timestamp"] = callTimestamp
+    }
+    metadata["delivery_mode"] = "fallback"
+    metadata["platform"] = "ios"
+
+    let body: [String: Any] = [
+      "meeting_uid": callId,
+      "data": [
+        "action": action,
+        "meta-data": metadata,
+      ],
+    ]
+
+    guard let bodyData = try? JSONSerialization.data(withJSONObject: body) else {
+      return
+    }
+
+    var request = URLRequest(url: url)
+    request.httpMethod = "POST"
+    request.httpBody = bodyData
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    request.setValue(secret, forHTTPHeaderField: "secret")
+
+    DispatchQueue.global(qos: .utility).asyncAfter(
+      deadline: .now() + Self.fallbackDispatchDelay
+    ) { [weak self] in
+      guard let self else { return }
+      guard !self.wasCallEventSent(meetingUid: callId, action: action) else { return }
+
+      URLSession.shared.dataTask(with: request) { [weak self] data, response, _ in
+        guard
+          let self,
+          let httpResponse = response as? HTTPURLResponse,
+          (200..<300).contains(httpResponse.statusCode),
+          let data,
+          let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+          (json["success"] as? Int) == 1
+        else { return }
+        self.markCallEventSent(meetingUid: callId, action: action)
+      }.resume()
+    }
   }
 
   private func reportIncomingCall(payload: [String: Any], completion: (() -> Void)? = nil) {
@@ -232,6 +375,11 @@ public class DaakiaCallkitFlutterPlugin: NSObject, FlutterPlugin, PKPushRegistry
       return
     }
 
+    sendFallbackWebhookIfEnabled(
+      callId: callId,
+      action: "call-accept",
+      payload: payloadForCallId(callId)
+    )
     enqueueEvent("callAccepted", arguments: payloadForCallId(callId))
     action.fulfill()
   }
@@ -242,6 +390,11 @@ public class DaakiaCallkitFlutterPlugin: NSObject, FlutterPlugin, PKPushRegistry
       return
     }
 
+    sendFallbackWebhookIfEnabled(
+      callId: callId,
+      action: "call-reject",
+      payload: payloadForCallId(callId)
+    )
     enqueueEvent("callDeclined", arguments: payloadForCallId(callId))
     endCall(callId: callId, reason: .remoteEnded, notifyFlutter: false)
     action.fulfill()
