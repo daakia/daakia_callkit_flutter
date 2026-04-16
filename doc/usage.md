@@ -139,6 +139,51 @@ The main event types are:
 
 Use `event.call` for the parsed `DaakiaIncomingCallPayload`.
 
+## Call Event Reporting
+
+When using `daakia_vc_flutter_sdk` for the actual meeting join, report call lifecycle events to the Daakia backend.
+
+### Send Call Event
+
+Report user actions like accept, reject, end, or timeout:
+
+```dart
+await sdk.sendCallEvent(
+  meetingUid: 'meeting_uid_123',
+  action: DaakiaCallEventAction.callAccept,
+  metadata: {'userId': 'current_user_id'},
+);
+```
+
+The event is sent only once per action per meeting UID. Use `clearSentCallEventCache()` to reset if needed.
+
+Metadata is optional and can be any key-value pairs you want to include.
+
+### Configure Call Event Fallback
+
+Set up fallback events for when the app is closed:
+
+```dart
+await sdk.configureCallEventFallback(
+  actions: {DaakiaCallEventAction.callAccept, DaakiaCallEventAction.callReject},
+  metadata: {'fallback': true},
+);
+```
+
+This allows events to be sent even if the app process is not running. Metadata is fixed at setup time.
+
+Metadata is optional and can be any key-value pairs you want to include.
+
+### Clear Sent Call Event Cache
+
+Reset the cache to allow re-sending the same event:
+
+```dart
+await sdk.clearSentCallEventCache();
+```
+
+Use this sparingly, as it bypasses duplicate prevention.
+
 ## Default Incoming Call Screen
 
 If you want to use the built-in Flutter screen:
