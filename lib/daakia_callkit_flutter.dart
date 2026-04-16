@@ -1,6 +1,7 @@
 library daakia_callkit_flutter;
 
 export 'src/daakia_callkit_flutter.dart';
+export 'src/models/daakia_call_event_action.dart';
 export 'src/models/daakia_call_session.dart';
 export 'src/models/daakia_call_status.dart';
 export 'src/models/daakia_call_event.dart';

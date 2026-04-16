@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 
 import 'models/daakia_call_event.dart';
+import 'models/daakia_call_event_action.dart';
 import 'models/daakia_call_session.dart';
 import 'models/daakia_call_status.dart';
 import 'models/daakia_callkit_config.dart';
@@ -10,6 +11,7 @@ import 'models/daakia_device_token_record.dart';
 import 'models/daakia_platform.dart';
 import 'models/daakia_push_result.dart';
 import 'services/daakia_backend_client.dart';
+import 'services/daakia_android_call_service.dart';
 import 'services/daakia_call_state_store.dart';
 import 'services/daakia_fcm_service.dart';
 import 'services/daakia_ios_voip_service.dart';
@@ -52,10 +54,7 @@ class DaakiaCallkitFlutter {
     );
     final voipSubscription = voip.events
         .map(DaakiaCallEvent.fromVoipEvent)
-        .listen(
-          controller.add,
-          onError: controller.addError,
-        );
+        .listen(controller.add, onError: controller.addError);
 
     controller.onCancel = () async {
       await notificationSubscription.cancel();
@@ -83,9 +82,7 @@ class DaakiaCallkitFlutter {
     DaakiaIncomingCallHandler? onCallEnded,
     DaakiaIncomingCallHandler? onCallTimedOut,
   }) async {
-    await notifications.initialize(
-      onIncomingCall: onIncomingCall,
-    );
+    await notifications.initialize(onIncomingCall: onIncomingCall);
 
     await _callEventSubscription?.cancel();
     if (onCallEvent == null &&
@@ -264,7 +261,7 @@ class DaakiaCallkitFlutter {
             platform: DaakiaPlatform.ios,
             isIosSandbox: isIosSandbox,
           ),
-          data: data,
+      data: data,
     );
   }
 
@@ -275,6 +272,83 @@ class DaakiaCallkitFlutter {
     Future<void> Function(String token)? onVoipTokenUpdated,
   }) {
     return voip.initialize(onVoipTokenUpdated: onVoipTokenUpdated);
+  }
+
+  Future<void> sendCallEvent({
+    required String meetingUid,
+    required DaakiaCallEventAction action,
+    Map<String, dynamic>? metadata,
+  }) async {
+    if (meetingUid.isEmpty) {
+      throw const DaakiaBackendException('meetingUid is required');
+    }
+
+    final alreadySent = await _wasCallEventSent(
+      meetingUid: meetingUid,
+      action: action,
+    );
+    if (alreadySent) return;
+
+    await _backendClient.sendCallEvent(
+      meetingUid: meetingUid,
+      action: action,
+      metadata: metadata,
+    );
+    await _markCallEventSent(meetingUid: meetingUid, action: action);
+  }
+
+  Future<void> configureCallEventFallback({
+    required Set<DaakiaCallEventAction> actions,
+    Map<String, dynamic>? metadata,
+  }) async {
+    final actionValues = actions
+        .map((DaakiaCallEventAction item) => item.value)
+        .toSet();
+    if (actionValues.isEmpty) {
+      await clearCallEventFallback();
+      return;
+    }
+
+    if (DaakiaPlatform.current == DaakiaPlatform.android) {
+      await DaakiaAndroidCallService().configureCallEventFallback(
+        baseUrl: _config.baseUrl,
+        secret: _config.secret,
+        actions: actionValues,
+        metadata: metadata,
+      );
+      return;
+    }
+
+    if (DaakiaPlatform.current == DaakiaPlatform.ios) {
+      await voip.configureCallEventFallback(
+        baseUrl: _config.baseUrl,
+        secret: _config.secret,
+        actions: actionValues,
+        metadata: metadata,
+      );
+    }
+  }
+
+  Future<void> clearCallEventFallback() async {
+    if (DaakiaPlatform.current == DaakiaPlatform.android) {
+      await DaakiaAndroidCallService().clearCallEventFallback();
+      return;
+    }
+
+    if (DaakiaPlatform.current == DaakiaPlatform.ios) {
+      await voip.clearCallEventFallback();
+    }
+  }
+
+  Future<void> clearSentCallEventCache() async {
+    if (DaakiaPlatform.current == DaakiaPlatform.android) {
+      await DaakiaAndroidCallService().clearSentCallEventCache();
+      return;
+    }
+
+    if (DaakiaPlatform.current == DaakiaPlatform.ios) {
+      await voip.clearSentCallEventCache();
+    }
   }
 
   /// Watches realtime state updates for a call when a call-state store is configured.
@@ -317,5 +391,46 @@ class DaakiaCallkitFlutter {
       actorId: actorId,
       reason: reason,
     );
+  }
+
+  Future<bool> _wasCallEventSent({
+    required String meetingUid,
+    required DaakiaCallEventAction action,
+  }) async {
+    if (DaakiaPlatform.current == DaakiaPlatform.android) {
+      return DaakiaAndroidCallService().wasCallEventSent(
+        meetingUid: meetingUid,
+        action: action.value,
+      );
+    }
+
+    if (DaakiaPlatform.current == DaakiaPlatform.ios) {
+      return voip.wasCallEventSent(
+        meetingUid: meetingUid,
+        action: action.value,
+      );
+    }
+
+    return false;
+  }
+
+  Future<void> _markCallEventSent({
+    required String meetingUid,
+    required DaakiaCallEventAction action,
+  }) async {
+    if (DaakiaPlatform.current == DaakiaPlatform.android) {
+      await DaakiaAndroidCallService().markCallEventSent(
+        meetingUid: meetingUid,
+        action: action.value,
+      );
+      return;
+    }
+
+    if (DaakiaPlatform.current == DaakiaPlatform.ios) {
+      await voip.markCallEventSent(
+        meetingUid: meetingUid,
+        action: action.value,
+      );
+    }
   }
 }

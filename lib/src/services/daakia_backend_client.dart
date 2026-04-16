@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import '../models/daakia_callkit_config.dart';
+import '../models/daakia_call_event_action.dart';
 import '../models/daakia_device_token_record.dart';
 import '../models/daakia_platform.dart';
 import '../models/daakia_push_result.dart';
@@ -55,7 +56,9 @@ class DaakiaBackendClient {
 
   void _throwIfBackendFailure(Map<String, dynamic> payload) {
     if ((payload['success'] as num? ?? 0) == 1) return;
-    throw DaakiaBackendException(payload['message']?.toString() ?? 'Request failed');
+    throw DaakiaBackendException(
+      payload['message']?.toString() ?? 'Request failed',
+    );
   }
 
   Future<DaakiaDeviceTokenRecord> registerDeviceToken({
@@ -145,5 +148,25 @@ class DaakiaBackendClient {
     final payload = await _decodeResponse(response);
     _throwIfBackendFailure(payload);
     return DaakiaPushResult.fromJson(payload);
+  }
+
+  Future<void> sendCallEvent({
+    required String meetingUid,
+    required DaakiaCallEventAction action,
+    Map<String, dynamic>? metadata,
+  }) async {
+    final response = await _httpClient.post(
+      _uri('/v2.0/rtc/call/webhook'),
+      headers: _headers,
+      body: jsonEncode(<String, dynamic>{
+        'meeting_uid': meetingUid,
+        'data': <String, dynamic>{
+          'action': action.value,
+          'meta-data': metadata ?? <String, dynamic>{},
+        },
+      }),
+    );
+    final payload = await _decodeResponse(response);
+    _throwIfBackendFailure(payload);
   }
 }
