@@ -103,9 +103,12 @@ class _DemoHomePageState extends State<DemoHomePage> {
   late final TextEditingController _directTokenController;
   late final TextEditingController _callIdController;
   late final TextEditingController _callerNameController;
+  late final TextEditingController _callEventMetadataController;
   late final TextEditingController _phoneController;
 
   bool _firestoreEnabled = false;
+  bool _sendRejectEventManually = true;
+  bool _enableRejectFallback = false;
   bool _sdkReady = false;
   String _log = '';
   String? _latestFcmToken;
@@ -127,6 +130,9 @@ class _DemoHomePageState extends State<DemoHomePage> {
       text: DateTime.now().millisecondsSinceEpoch.toString(),
     );
     _callerNameController = TextEditingController(text: 'Daakia Demo Caller');
+    _callEventMetadataController = TextEditingController(
+      text: '{"source":"example_app"}',
+    );
     _phoneController = TextEditingController(text: '+910000000000');
   }
 
@@ -139,6 +145,7 @@ class _DemoHomePageState extends State<DemoHomePage> {
     _directTokenController.dispose();
     _callIdController.dispose();
     _callerNameController.dispose();
+    _callEventMetadataController.dispose();
     _phoneController.dispose();
     _foregroundMessageSubscription?.cancel();
     _messageOpenedAppSubscription?.cancel();
@@ -162,6 +169,22 @@ class _DemoHomePageState extends State<DemoHomePage> {
       return error.toString();
     }
     return '$error';
+  }
+
+  Map<String, dynamic> _callEventMetadata({
+    Map<String, dynamic> extra = const <String, dynamic>{},
+  }) {
+    final raw = _callEventMetadataController.text.trim();
+    final metadata = <String, dynamic>{};
+    if (raw.isNotEmpty) {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) {
+        throw const FormatException('Metadata JSON must be an object.');
+      }
+      metadata.addAll(Map<String, dynamic>.from(decoded));
+    }
+    metadata.addAll(extra);
+    return metadata;
   }
 
   Future<void> _copyToken(String label, String? value) async {
@@ -242,7 +265,6 @@ class _DemoHomePageState extends State<DemoHomePage> {
         await _openIncomingCallFromPayload(payload);
       },
     );
-
   }
 
   Future<void> _handleCallEvent(DaakiaCallEvent event) async {
@@ -266,6 +288,12 @@ class _DemoHomePageState extends State<DemoHomePage> {
         }
         return;
       case DaakiaCallEventType.declined:
+        if (_sendRejectEventManually) {
+          await _sendRejectCallEvent(
+            meetingUid: payload.callId,
+            source: 'call_event_declined',
+          );
+        }
         if (sdk != null && sdk.supportsRealtimeCallState) {
           await sdk.updateLocalCallStatus(
             callId: payload.callId,
@@ -284,9 +312,11 @@ class _DemoHomePageState extends State<DemoHomePage> {
         }
         return;
       case DaakiaCallEventType.incoming:
+        return;
       case DaakiaCallEventType.ended:
+        return;
       case DaakiaCallEventType.unknown:
-      return;
+        return;
     }
   }
 
@@ -295,23 +325,20 @@ class _DemoHomePageState extends State<DemoHomePage> {
     await Navigator.push<void>(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            DaakiaVideoConferenceWidget(
-              meetingId: callUid,
-              secretKey: SecretCredential.daakiaVcSecretKey,
-              isHost: false,
-              configuration:
-              DaakiaMeetingConfiguration(
-                  participantNameConfig:
-                  ParticipantNameConfig(
-                    name: callerName ?? "Unknown",
-                    isEditable: false,
-                  ),
-                  skipPreJoinPage: true,
-                  enableCameraByDefault: true,
-                  enableMicrophoneByDefault: true
-              ),
+        builder: (_) => DaakiaVideoConferenceWidget(
+          meetingId: callUid,
+          secretKey: SecretCredential.daakiaVcSecretKey,
+          isHost: false,
+          configuration: DaakiaMeetingConfiguration(
+            participantNameConfig: ParticipantNameConfig(
+              name: callerName ?? "Unknown",
+              isEditable: false,
             ),
+            skipPreJoinPage: true,
+            enableCameraByDefault: true,
+            enableMicrophoneByDefault: true,
+          ),
+        ),
       ),
     );
     await _sdk?.voip.endCall(callUid);
@@ -364,8 +391,8 @@ class _DemoHomePageState extends State<DemoHomePage> {
   ) async {
     if (!Platform.isAndroid) return;
 
-    final canUseFullScreenIntent =
-        await sdk.notifications.canUseFullScreenIntent();
+    final canUseFullScreenIntent = await sdk.notifications
+        .canUseFullScreenIntent();
     _appendLog(
       'Android full-screen intent access: '
       '${canUseFullScreenIntent ? 'allowed' : 'disabled'}',
@@ -436,9 +463,88 @@ class _DemoHomePageState extends State<DemoHomePage> {
     setState(() {
       _sdkReady = true;
     });
+    await _applyRejectFallbackConfig();
     _appendLog(
       'SDK initialized. Firestore adapter: ${_firestoreEnabled ? 'enabled' : 'disabled'}',
     );
+  }
+
+  Future<void> _sendRejectCallEvent({
+    String? meetingUid,
+    required String source,
+  }) async {
+    final sdk = _sdk;
+    final resolvedMeetingUid = meetingUid ?? _callIdController.text.trim();
+    if (sdk == null) {
+      _appendLog('Initialize SDK first.');
+      return;
+    }
+    if (resolvedMeetingUid.isEmpty) {
+      _appendLog('Meeting UID / Call ID is required.');
+      return;
+    }
+
+    try {
+      await sdk.sendCallEvent(
+        meetingUid: resolvedMeetingUid,
+        action: DaakiaCallEventAction.callReject,
+        metadata: _callEventMetadata(
+          extra: <String, dynamic>{'source': source},
+        ),
+      );
+      _appendLog(
+        'Sent call-reject event for $resolvedMeetingUid from $source.',
+      );
+    } catch (error) {
+      _appendLog('Send call-reject failed: ${_describeSdkError(error)}');
+    }
+  }
+
+  Future<void> _applyRejectFallbackConfig() async {
+    final sdk = _sdk;
+    if (sdk == null) {
+      _appendLog('Initialize SDK first.');
+      return;
+    }
+
+    try {
+      if (_enableRejectFallback) {
+        await sdk.configureCallEventFallback(
+          actions: <DaakiaCallEventAction>{DaakiaCallEventAction.callReject},
+          metadata: _callEventMetadata(
+            extra: <String, dynamic>{'source': 'fallback_config'},
+          ),
+        );
+        _appendLog(
+          'Configured call event fallback for call-reject. '
+          'This is the more reliable path when the app is backgrounded or closed.',
+        );
+      } else {
+        await sdk.clearCallEventFallback();
+        _appendLog('Cleared call event fallback config.');
+      }
+    } catch (error) {
+      _appendLog(
+        'Configure call event fallback failed: ${_describeSdkError(error)}',
+      );
+    }
+  }
+
+  Future<void> _clearSentCallEventCache() async {
+    final sdk = _sdk;
+    if (sdk == null) {
+      _appendLog('Initialize SDK first.');
+      return;
+    }
+
+    try {
+      await sdk.clearSentCallEventCache();
+      _appendLog('Cleared sent call event cache.');
+    } catch (error) {
+      _appendLog(
+        'Clear sent call event cache failed: ${_describeSdkError(error)}',
+      );
+    }
   }
 
   Future<void> _initializeVoip() async {
@@ -588,6 +694,12 @@ class _DemoHomePageState extends State<DemoHomePage> {
           },
           onReject: (DaakiaIncomingCallPayload payload) async {
             _appendLog('Incoming screen reject: ${payload.callId}');
+            if (_sendRejectEventManually) {
+              await _sendRejectCallEvent(
+                meetingUid: payload.callId,
+                source: 'incoming_screen_reject',
+              );
+            }
             final sdk = _sdk;
             if (sdk != null && sdk.supportsRealtimeCallState) {
               await sdk.updateLocalCallStatus(
@@ -716,6 +828,84 @@ class _DemoHomePageState extends State<DemoHomePage> {
             ),
           ),
           const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(
+                    'Call Event Webhook',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'This example focuses on call-reject. Join-related events only make sense when the meeting is opened through daakia_vc_flutter_sdk.',
+                  ),
+                  const SizedBox(height: 12),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: _sendRejectEventManually,
+                    onChanged: (bool value) {
+                      setState(() {
+                        _sendRejectEventManually = value;
+                      });
+                    },
+                    title: const Text('Manually send call-reject from Dart'),
+                    subtitle: const Text(
+                      'Useful while the app is open. Metadata can be dynamic.',
+                    ),
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: _enableRejectFallback,
+                    onChanged: (bool value) {
+                      setState(() {
+                        _enableRejectFallback = value;
+                      });
+                    },
+                    title: const Text('Enable native fallback for call-reject'),
+                    subtitle: const Text(
+                      'More reliable for background or closed-app reject actions. Metadata must be predefined.',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _callEventMetadataController,
+                    minLines: 3,
+                    maxLines: 5,
+                    decoration: const InputDecoration(
+                      labelText: 'Call event metadata JSON',
+                      hintText: '{"source":"example_app"}',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: <Widget>[
+                      FilledButton(
+                        onPressed: () {
+                          _sendRejectCallEvent(source: 'manual_button');
+                        },
+                        child: const Text('Send Reject Event'),
+                      ),
+                      OutlinedButton(
+                        onPressed: _applyRejectFallbackConfig,
+                        child: const Text('Apply Fallback Config'),
+                      ),
+                      OutlinedButton(
+                        onPressed: _clearSentCallEventCache,
+                        child: const Text('Clear Event Cache'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           Wrap(
             spacing: 12,
             runSpacing: 12,
@@ -759,10 +949,7 @@ class _DemoHomePageState extends State<DemoHomePage> {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                 ),
               ),
-              TextButton(
-                onPressed: _clearLog,
-                child: const Text('Clear Log'),
-              ),
+              TextButton(onPressed: _clearLog, child: const Text('Clear Log')),
             ],
           ),
           const SizedBox(height: 8),
