@@ -1,6 +1,6 @@
 name: daakia_callkit_flutter
 description: "Callkit Flutter package by Daakia which helps flutter apps integrate Daakia-backed incoming call signaling for Android and iOS."
-version: 1.0.0
+version: 1.1.0
 homepage: https://github.com/Daakia-Org/daakia_callkit_flutter
 
 environment:

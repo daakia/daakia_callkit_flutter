@@ -75,6 +75,55 @@ class DaakiaAndroidCallService {
     return result ?? false;
   }
 
+  Future<void> configureCallEventFallback({
+    required String baseUrl,
+    required String secret,
+    required Set<String> actions,
+    Map<String, dynamic>? metadata,
+  }) async {
+    if (!Platform.isAndroid) return;
+    await _channel
+        .invokeMethod<void>('configureCallEventFallback', <String, dynamic>{
+          'baseUrl': baseUrl,
+          'secret': secret,
+          'actions': actions.toList(),
+          'metadata': metadata ?? <String, dynamic>{},
+        });
+  }
+
+  Future<void> clearCallEventFallback() async {
+    if (!Platform.isAndroid) return;
+    await _channel.invokeMethod<void>('clearCallEventFallback');
+  }
+
+  Future<bool> wasCallEventSent({
+    required String meetingUid,
+    required String action,
+  }) async {
+    if (!Platform.isAndroid) return false;
+    final result = await _channel.invokeMethod<bool>(
+      'wasCallEventSent',
+      <String, dynamic>{'meetingUid': meetingUid, 'action': action},
+    );
+    return result ?? false;
+  }
+
+  Future<void> markCallEventSent({
+    required String meetingUid,
+    required String action,
+  }) async {
+    if (!Platform.isAndroid) return;
+    await _channel.invokeMethod<void>('markCallEventSent', <String, dynamic>{
+      'meetingUid': meetingUid,
+      'action': action,
+    });
+  }
+
+  Future<void> clearSentCallEventCache() async {
+    if (!Platform.isAndroid) return;
+    await _channel.invokeMethod<void>('clearSentCallEventCache');
+  }
+
   Future<void> _handleNativeCall(MethodCall call) async {
     if (call.arguments is! Map) return;
     final payload = Map<String, dynamic>.from(
