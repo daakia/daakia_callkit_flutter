@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 1.1.1 - (2026-04)
+
+- Fixed Android accept-from-notification behavior on modern Android versions by removing the service-to-activity trampoline path that could block app launch when the app was fully closed.
+- Updated the example app to auto-initialize from the last saved SDK config at startup so closed-state accept actions can navigate into the call flow without waiting for manual initialization.
+- Added `DaakiaCallkitFlutter.dispose()` to make same-process SDK reinitialization safe when switching test credentials.
+
 ## 1.1.0 - (2026-04)
 
 Added call event reporting features for integrations using `daakia_vc_flutter_sdk`.
