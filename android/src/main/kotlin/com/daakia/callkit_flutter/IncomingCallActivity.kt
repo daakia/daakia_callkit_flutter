@@ -40,11 +40,15 @@ class IncomingCallActivity : AppCompatActivity() {
 
         showOverLockScreen()
 
-        val payloadJson = intent.getStringExtra(IncomingCallService.EXTRA_PAYLOAD).orEmpty()
-        val payload = payloadMap(payloadJson)
-        callId = payload["callId"]?.toString()
+        if (handleLaunchIntent(intent)) {
+            return
+        }
+    }
 
-        setContentView(buildContent(payloadJson, payload))
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleLaunchIntent(intent)
     }
 
     override fun onStart() {
@@ -189,13 +193,7 @@ class IncomingCallActivity : AppCompatActivity() {
                     backgroundColor = Color.parseColor("#43A047"),
                     iconRes = android.R.drawable.sym_action_call
                 ) {
-                    startService(
-                        Intent(context, IncomingCallService::class.java).apply {
-                            action = IncomingCallService.ACTION_ACCEPT
-                            putExtra(IncomingCallService.EXTRA_PAYLOAD, payloadJson)
-                        }
-                    )
-                    finish()
+                    acceptCall(payloadJson)
                 })
             })
 
@@ -279,6 +277,50 @@ class IncomingCallActivity : AppCompatActivity() {
         return payload["callerName"]?.toString()
             ?: payload["title"]?.toString()
             ?: "Unknown"
+    }
+
+    private fun handleLaunchIntent(intent: Intent): Boolean {
+        val payloadJson = intent.getStringExtra(IncomingCallService.EXTRA_PAYLOAD).orEmpty()
+        if (payloadJson.isBlank()) {
+            finish()
+            return true
+        }
+
+        val payload = payloadMap(payloadJson)
+        callId = payload["callId"]?.toString()
+
+        if (intent.getStringExtra(IncomingCallService.EXTRA_ACTION_SOURCE) ==
+            IncomingCallService.ACTION_SOURCE_ACCEPT
+        ) {
+            acceptCall(payloadJson)
+            return true
+        }
+
+        setContentView(buildContent(payloadJson, payload))
+        return false
+    }
+
+    private fun acceptCall(payloadJson: String) {
+        startService(
+            Intent(this, IncomingCallService::class.java).apply {
+                action = IncomingCallService.ACTION_ACCEPT
+                putExtra(IncomingCallService.EXTRA_SKIP_HOST_LAUNCH, true)
+            }
+        )
+        launchHostApp(payloadJson, IncomingCallService.ACTION_SOURCE_ACCEPT)
+        finish()
+    }
+
+    private fun launchHostApp(payloadJson: String, actionSource: String) {
+        val launchIntent = packageManager.getLaunchIntentForPackage(packageName) ?: return
+        launchIntent.addFlags(
+            Intent.FLAG_ACTIVITY_NEW_TASK or
+                Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                Intent.FLAG_ACTIVITY_CLEAR_TOP
+        )
+        launchIntent.putExtra(IncomingCallService.EXTRA_PAYLOAD, payloadJson)
+        launchIntent.putExtra(IncomingCallService.EXTRA_ACTION_SOURCE, actionSource)
+        startActivity(launchIntent)
     }
 
     private fun spacer(weight: Float): View {

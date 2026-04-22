@@ -39,13 +39,14 @@ class IncomingCallService : Service() {
         const val EXTRA_CALL_ID = "callId"
         const val EXTRA_TIMEOUT_SECONDS = "timeoutSeconds"
         const val EXTRA_ACTION_SOURCE = "actionSource"
+        const val EXTRA_SKIP_HOST_LAUNCH = "skipHostLaunch"
 
         private const val CALL_CHANNEL_ID = "daakia_call_channel_native_v2"
         private const val ACTION_CALL_ACCEPT = "call-accept"
         private const val ACTION_CALL_REJECT = "call-reject"
         private const val ACTION_CALL_TIMEOUT = "call-timeout"
-        private const val ACTION_SOURCE_ACCEPT = "accept"
-        private const val ACTION_SOURCE_INCOMING = "incoming"
+        const val ACTION_SOURCE_ACCEPT = "accept"
+        const val ACTION_SOURCE_INCOMING = "incoming"
         private const val DEFAULT_TIMEOUT_SECONDS = 30
         private const val FALLBACK_DISPATCH_DELAY_MS = 1500L
 
@@ -88,7 +89,7 @@ class IncomingCallService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_SHOW -> handleShow(intent)
-            ACTION_ACCEPT -> handleAccept()
+            ACTION_ACCEPT -> handleAccept(intent)
             ACTION_DECLINE -> handleDecline()
             ACTION_END -> handleEnd(intent.getStringExtra(EXTRA_CALL_ID))
             ACTION_CONNECTED -> handleConnected(intent.getStringExtra(EXTRA_CALL_ID))
@@ -127,11 +128,14 @@ class IncomingCallService : Service() {
         DaakiaCallkitFlutterPlugin.emitEvent("incomingCall", payload)
     }
 
-    private fun handleAccept() {
+    private fun handleAccept(intent: Intent?) {
         val payload = currentPayloadMap() ?: return stopServiceState()
+        val skipHostLaunch = intent?.getBooleanExtra(EXTRA_SKIP_HOST_LAUNCH, false) ?: false
         sendFallbackWebhookIfEnabled(payload, ACTION_CALL_ACCEPT)
         DaakiaCallkitFlutterPlugin.emitEvent("callAccepted", payload)
-        launchHostApp(ACTION_SOURCE_ACCEPT)
+        if (!skipHostLaunch) {
+            launchHostApp(ACTION_SOURCE_ACCEPT)
+        }
         stopServiceState()
     }
 
@@ -264,10 +268,12 @@ class IncomingCallService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or immutableFlag()
         )
 
-        val acceptIntent = Intent(this, IncomingCallService::class.java).apply {
-            action = ACTION_ACCEPT
+        val acceptIntent = Intent(this, IncomingCallActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            putExtra(EXTRA_PAYLOAD, payloadJson)
+            putExtra(EXTRA_ACTION_SOURCE, ACTION_SOURCE_ACCEPT)
         }
-        val acceptPendingIntent = PendingIntent.getService(
+        val acceptPendingIntent = PendingIntent.getActivity(
             this,
             (activeNotificationId ?: 0) + 1,
             acceptIntent,

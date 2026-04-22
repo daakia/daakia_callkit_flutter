@@ -116,6 +116,15 @@ class DaakiaCallkitFlutter {
     });
   }
 
+  /// Releases SDK-managed Dart event subscriptions for this instance.
+  ///
+  /// Call this before discarding an instance if you plan to create a new SDK
+  /// object with different configuration in the same process.
+  Future<void> dispose() async {
+    await _callEventSubscription?.cancel();
+    _callEventSubscription = null;
+  }
+
   /// Resolves the backend `config_name` value for the target platform.
   ///
   /// Current behavior:

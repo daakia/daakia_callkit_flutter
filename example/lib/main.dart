@@ -11,10 +11,37 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'firebase_options.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+const String _sdkBaseUrlPreferenceKey = 'example_sdk_base_url';
+const String _sdkSecretPreferenceKey = 'example_sdk_secret';
+
+class ExampleSdkBootstrapConfig {
+  const ExampleSdkBootstrapConfig({
+    required this.baseUrl,
+    required this.secret,
+  });
+
+  final String baseUrl;
+  final String secret;
+
+  bool get isComplete => baseUrl.trim().isNotEmpty && secret.trim().isNotEmpty;
+}
+
+Future<ExampleSdkBootstrapConfig> _loadInitialSdkConfig() async {
+  final preferences = await SharedPreferences.getInstance();
+  return ExampleSdkBootstrapConfig(
+    baseUrl:
+        preferences.getString(_sdkBaseUrlPreferenceKey) ??
+        SecretCredential.baseUrl,
+    secret:
+        preferences.getString(_sdkSecretPreferenceKey) ??
+        SecretCredential.secretKey,
+  );
+}
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -38,6 +65,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   FirebaseInitResult firebaseState = const FirebaseInitResult.notInitialized();
+  final initialSdkConfig = await _loadInitialSdkConfig();
 
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
@@ -50,13 +78,20 @@ Future<void> main() async {
     firebaseState = FirebaseInitResult.failed(error.toString());
   }
 
-  runApp(MyApp(firebaseState: firebaseState));
+  runApp(
+    MyApp(firebaseState: firebaseState, initialSdkConfig: initialSdkConfig),
+  );
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key, required this.firebaseState});
+  const MyApp({
+    super.key,
+    required this.firebaseState,
+    required this.initialSdkConfig,
+  });
 
   final FirebaseInitResult firebaseState;
+  final ExampleSdkBootstrapConfig initialSdkConfig;
 
   @override
   Widget build(BuildContext context) {
@@ -67,7 +102,10 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF005F73)),
       ),
-      home: DemoHomePage(firebaseState: firebaseState),
+      home: DemoHomePage(
+        firebaseState: firebaseState,
+        initialSdkConfig: initialSdkConfig,
+      ),
     );
   }
 }
@@ -87,9 +125,14 @@ class FirebaseInitResult {
 }
 
 class DemoHomePage extends StatefulWidget {
-  const DemoHomePage({super.key, required this.firebaseState});
+  const DemoHomePage({
+    super.key,
+    required this.firebaseState,
+    required this.initialSdkConfig,
+  });
 
   final FirebaseInitResult firebaseState;
+  final ExampleSdkBootstrapConfig initialSdkConfig;
 
   @override
   State<DemoHomePage> createState() => _DemoHomePageState();
@@ -110,6 +153,9 @@ class _DemoHomePageState extends State<DemoHomePage> {
   bool _sendRejectEventManually = true;
   bool _enableRejectFallback = false;
   bool _sdkReady = false;
+  bool _didAttemptAutoInitialization = false;
+  bool _isInitializingSdk = false;
+  bool _checkedInitialMessage = false;
   String _log = '';
   String? _latestFcmToken;
   String? _latestVoipToken;
@@ -121,8 +167,12 @@ class _DemoHomePageState extends State<DemoHomePage> {
   @override
   void initState() {
     super.initState();
-    _baseUrlController = TextEditingController(text: SecretCredential.baseUrl);
-    _secretController = TextEditingController(text: SecretCredential.secretKey);
+    _baseUrlController = TextEditingController(
+      text: widget.initialSdkConfig.baseUrl,
+    );
+    _secretController = TextEditingController(
+      text: widget.initialSdkConfig.secret,
+    );
     _currentUsernameController = TextEditingController();
     _targetUsernameController = TextEditingController();
     _directTokenController = TextEditingController();
@@ -134,6 +184,10 @@ class _DemoHomePageState extends State<DemoHomePage> {
       text: '{"source":"example_app"}',
     );
     _phoneController = TextEditingController(text: '+910000000000');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_bootstrapSdkOnLaunch());
+    });
   }
 
   @override
@@ -149,6 +203,7 @@ class _DemoHomePageState extends State<DemoHomePage> {
     _phoneController.dispose();
     _foregroundMessageSubscription?.cancel();
     _messageOpenedAppSubscription?.cancel();
+    unawaited(_sdk?.dispose() ?? Future<void>.value());
     super.dispose();
   }
 
@@ -169,6 +224,34 @@ class _DemoHomePageState extends State<DemoHomePage> {
       return error.toString();
     }
     return '$error';
+  }
+
+  ExampleSdkBootstrapConfig _currentSdkConfig() {
+    return ExampleSdkBootstrapConfig(
+      baseUrl: _baseUrlController.text.trim(),
+      secret: _secretController.text.trim(),
+    );
+  }
+
+  Future<void> _persistSdkConfig(ExampleSdkBootstrapConfig config) async {
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setString(_sdkBaseUrlPreferenceKey, config.baseUrl);
+    await preferences.setString(_sdkSecretPreferenceKey, config.secret);
+  }
+
+  Future<void> _bootstrapSdkOnLaunch() async {
+    if (_didAttemptAutoInitialization) return;
+    _didAttemptAutoInitialization = true;
+
+    if (!widget.initialSdkConfig.isComplete) {
+      _appendLog(
+        'Startup SDK bootstrap skipped because the saved config is incomplete.',
+      );
+      return;
+    }
+
+    _appendLog('Bootstrapping SDK from the last saved config.');
+    await _initializeSdk(automatic: true);
   }
 
   Map<String, dynamic> _callEventMetadata({
@@ -278,7 +361,7 @@ class _DemoHomePageState extends State<DemoHomePage> {
 
     switch (event.type) {
       case DaakiaCallEventType.accepted:
-        _joinCall(payload.callId, payload.title);
+        unawaited(_joinCall(payload.callId, payload.title));
         if (sdk != null && sdk.supportsRealtimeCallState) {
           await sdk.updateLocalCallStatus(
             callId: payload.callId,
@@ -320,27 +403,43 @@ class _DemoHomePageState extends State<DemoHomePage> {
     }
   }
 
+  Future<void> _runWithNavigator(
+    Future<void> Function(NavigatorState navigator) action,
+  ) async {
+    final navigator = navigatorKey.currentState;
+    if (navigator != null) {
+      await action(navigator);
+      return;
+    }
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_runWithNavigator(action));
+    });
+  }
+
   Future<void> _joinCall(String? callUid, String? callerName) async {
     if (callUid == null) return;
-    await Navigator.push<void>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => DaakiaVideoConferenceWidget(
-          meetingId: callUid,
-          secretKey: SecretCredential.daakiaVcSecretKey,
-          isHost: false,
-          configuration: DaakiaMeetingConfiguration(
-            participantNameConfig: ParticipantNameConfig(
-              name: callerName ?? "Unknown",
-              isEditable: false,
+    await _runWithNavigator((NavigatorState navigator) async {
+      await navigator.push<void>(
+        MaterialPageRoute(
+          builder: (_) => DaakiaVideoConferenceWidget(
+            meetingId: callUid,
+            secretKey: SecretCredential.daakiaVcSecretKey,
+            isHost: false,
+            configuration: DaakiaMeetingConfiguration(
+              participantNameConfig: ParticipantNameConfig(
+                name: callerName ?? "Unknown",
+                isEditable: false,
+              ),
+              skipPreJoinPage: true,
+              enableCameraByDefault: true,
+              enableMicrophoneByDefault: true,
             ),
-            skipPreJoinPage: true,
-            enableCameraByDefault: true,
-            enableMicrophoneByDefault: true,
           ),
         ),
-      ),
-    );
+      );
+    });
     await _sdk?.voip.endCall(callUid);
   }
 
@@ -387,8 +486,9 @@ class _DemoHomePageState extends State<DemoHomePage> {
   }
 
   Future<void> _ensureAndroidFullScreenIntentAccess(
-    DaakiaCallkitFlutter sdk,
-  ) async {
+    DaakiaCallkitFlutter sdk, {
+    bool promptToOpenSettings = true,
+  }) async {
     if (!Platform.isAndroid) return;
 
     final canUseFullScreenIntent = await sdk.notifications
@@ -397,7 +497,7 @@ class _DemoHomePageState extends State<DemoHomePage> {
       'Android full-screen intent access: '
       '${canUseFullScreenIntent ? 'allowed' : 'disabled'}',
     );
-    if (canUseFullScreenIntent || !mounted) return;
+    if (canUseFullScreenIntent || !mounted || !promptToOpenSettings) return;
 
     final openSettings = await showDialog<bool>(
       context: context,
@@ -432,41 +532,110 @@ class _DemoHomePageState extends State<DemoHomePage> {
     }
   }
 
-  Future<void> _initializeSdk() async {
-    if (_baseUrlController.text.trim().isEmpty ||
-        _secretController.text.trim().isEmpty) {
+  Future<void> _handleInitialMessageIfNeeded() async {
+    if (_checkedInitialMessage || !widget.firebaseState.initialized) return;
+    _checkedInitialMessage = true;
+
+    final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+    if (initialMessage == null || initialMessage.data.isEmpty) return;
+
+    final payload = DaakiaIncomingCallPayload.fromMap(
+      Map<String, dynamic>.from(initialMessage.data),
+    );
+    _appendLog('Launched from push for call ${payload.callId}');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_openIncomingCallFromPayload(payload));
+    });
+  }
+
+  Future<String?> _initializeVoipBridge(
+    DaakiaCallkitFlutter sdk, {
+    bool automatic = false,
+  }) async {
+    final token = await sdk.initializeVoip(
+      onVoipTokenUpdated: (String token) async {
+        if (!mounted) return;
+        setState(() {
+          _latestVoipToken = token;
+        });
+        _appendLog('VoIP token updated: $token');
+      },
+    );
+
+    if (mounted && token != null && token.isNotEmpty) {
+      setState(() {
+        _latestVoipToken = token;
+      });
+    }
+    _appendLog(
+      automatic
+          ? 'VoIP bridge initialized at startup. '
+                'token=${token ?? _latestVoipToken ?? 'null'}'
+          : 'VoIP initialization finished. '
+                'token=${token ?? _latestVoipToken ?? 'null'}',
+    );
+    return token;
+  }
+
+  Future<void> _initializeSdk({bool automatic = false}) async {
+    final config = _currentSdkConfig();
+    if (!config.isComplete) {
       _appendLog('Base URL and secret are required.');
       return;
     }
-
-    final sdk = _buildSdk();
-    await _requestAndroidNotificationPermission();
-    await sdk.initialize(
-      onIncomingCall: _openIncomingCallFromPayload,
-      onCallEvent: _handleCallEvent,
-    );
-    await _ensureAndroidFullScreenIntentAccess(sdk);
-    await _bindIncomingHandlers(sdk);
-
-    final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
-    if (initialMessage != null && initialMessage.data.isNotEmpty) {
-      final payload = DaakiaIncomingCallPayload.fromMap(
-        Map<String, dynamic>.from(initialMessage.data),
-      );
-      _appendLog('Launched from push for call ${payload.callId}');
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _openIncomingCallFromPayload(payload);
-      });
+    if (_isInitializingSdk) {
+      if (!automatic) {
+        _appendLog('SDK initialization is already in progress.');
+      }
+      return;
     }
 
-    _sdk = sdk;
-    setState(() {
-      _sdkReady = true;
-    });
-    await _applyRejectFallbackConfig();
-    _appendLog(
-      'SDK initialized. Firestore adapter: ${_firestoreEnabled ? 'enabled' : 'disabled'}',
-    );
+    _isInitializingSdk = true;
+    try {
+      await _sdk?.dispose();
+      final sdk = _buildSdk();
+      _sdk = sdk;
+
+      await _requestAndroidNotificationPermission();
+      await sdk.initialize(
+        onIncomingCall: _openIncomingCallFromPayload,
+        onCallEvent: _handleCallEvent,
+      );
+      await _persistSdkConfig(config);
+      if (Platform.isIOS) {
+        await _initializeVoipBridge(sdk, automatic: automatic);
+      }
+      await _ensureAndroidFullScreenIntentAccess(
+        sdk,
+        promptToOpenSettings: !automatic,
+      );
+      await _bindIncomingHandlers(sdk);
+      await _handleInitialMessageIfNeeded();
+
+      if (!mounted) return;
+      setState(() {
+        _sdkReady = true;
+      });
+      await _applyRejectFallbackConfig();
+      _appendLog(
+        automatic
+            ? 'SDK initialized from saved config. Firestore adapter: '
+                  '${_firestoreEnabled ? 'enabled' : 'disabled'}'
+            : 'SDK initialized. Firestore adapter: '
+                  '${_firestoreEnabled ? 'enabled' : 'disabled'}',
+      );
+    } catch (error) {
+      _sdk = null;
+      if (mounted) {
+        setState(() {
+          _sdkReady = false;
+        });
+      }
+      _appendLog('SDK initialization failed: ${_describeSdkError(error)}');
+    } finally {
+      _isInitializingSdk = false;
+    }
   }
 
   Future<void> _sendRejectCallEvent({
@@ -553,20 +722,7 @@ class _DemoHomePageState extends State<DemoHomePage> {
       _appendLog('Initialize SDK first.');
       return;
     }
-
-    final token = await sdk.initializeVoip(
-      onVoipTokenUpdated: (String token) async {
-        setState(() {
-          _latestVoipToken = token;
-        });
-        _appendLog('VoIP token updated: $token');
-      },
-    );
-
-    setState(() {
-      _latestVoipToken = token;
-    });
-    _appendLog('VoIP initialization finished. token=${token ?? 'null'}');
+    await _initializeVoipBridge(sdk);
   }
 
   Future<void> _registerFcm() async {
@@ -672,58 +828,57 @@ class _DemoHomePageState extends State<DemoHomePage> {
     DaakiaIncomingCallPayload payload,
   ) async {
     _appendLog('Opening incoming call UI for ${payload.callId}');
-    final navigator = navigatorKey.currentState;
-    if (navigator == null) return;
-
-    await navigator.push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => DaakiaIncomingCallScreen(
-          payload: payload,
-          onAccept: (DaakiaIncomingCallPayload payload) async {
-            _appendLog('Incoming screen accept: ${payload.callId}');
-            _joinCall(payload.callId, payload.title);
-            final sdk = _sdk;
-            if (sdk != null && sdk.supportsRealtimeCallState) {
-              await sdk.updateLocalCallStatus(
-                callId: payload.callId,
-                status: DaakiaCallStatus.accepted,
-                actorId: payload.receiverId,
-              );
-            }
-            navigator.pop();
-          },
-          onReject: (DaakiaIncomingCallPayload payload) async {
-            _appendLog('Incoming screen reject: ${payload.callId}');
-            if (_sendRejectEventManually) {
-              await _sendRejectCallEvent(
-                meetingUid: payload.callId,
-                source: 'incoming_screen_reject',
-              );
-            }
-            final sdk = _sdk;
-            if (sdk != null && sdk.supportsRealtimeCallState) {
-              await sdk.updateLocalCallStatus(
-                callId: payload.callId,
-                status: DaakiaCallStatus.rejected,
-                actorId: payload.receiverId,
-              );
-            }
-            navigator.pop();
-          },
-          onTimeout: (DaakiaIncomingCallPayload payload) async {
-            _appendLog('Incoming screen timeout: ${payload.callId}');
-            final sdk = _sdk;
-            if (sdk != null && sdk.supportsRealtimeCallState) {
-              await sdk.updateLocalCallStatus(
-                callId: payload.callId,
-                status: DaakiaCallStatus.missed,
-                actorId: payload.receiverId,
-              );
-            }
-          },
+    await _runWithNavigator((NavigatorState navigator) async {
+      await navigator.push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => DaakiaIncomingCallScreen(
+            payload: payload,
+            onAccept: (DaakiaIncomingCallPayload payload) async {
+              _appendLog('Incoming screen accept: ${payload.callId}');
+              unawaited(_joinCall(payload.callId, payload.title));
+              final sdk = _sdk;
+              if (sdk != null && sdk.supportsRealtimeCallState) {
+                await sdk.updateLocalCallStatus(
+                  callId: payload.callId,
+                  status: DaakiaCallStatus.accepted,
+                  actorId: payload.receiverId,
+                );
+              }
+              navigator.pop();
+            },
+            onReject: (DaakiaIncomingCallPayload payload) async {
+              _appendLog('Incoming screen reject: ${payload.callId}');
+              if (_sendRejectEventManually) {
+                await _sendRejectCallEvent(
+                  meetingUid: payload.callId,
+                  source: 'incoming_screen_reject',
+                );
+              }
+              final sdk = _sdk;
+              if (sdk != null && sdk.supportsRealtimeCallState) {
+                await sdk.updateLocalCallStatus(
+                  callId: payload.callId,
+                  status: DaakiaCallStatus.rejected,
+                  actorId: payload.receiverId,
+                );
+              }
+              navigator.pop();
+            },
+            onTimeout: (DaakiaIncomingCallPayload payload) async {
+              _appendLog('Incoming screen timeout: ${payload.callId}');
+              final sdk = _sdk;
+              if (sdk != null && sdk.supportsRealtimeCallState) {
+                await sdk.updateLocalCallStatus(
+                  callId: payload.callId,
+                  status: DaakiaCallStatus.missed,
+                  actorId: payload.receiverId,
+                );
+              }
+            },
+          ),
         ),
-      ),
-    );
+      );
+    });
   }
 
   @override
