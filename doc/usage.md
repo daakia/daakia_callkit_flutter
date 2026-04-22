@@ -38,9 +38,13 @@ await sdk.initialize(
 );
 ```
 
+Call `initialize()` as part of app startup. Do not wait until the user opens a
+debug, settings, or onboarding screen if you need accept actions from a closed
+state to immediately continue into your app flow.
+
 ## Initialize iOS VoIP
 
-Call this on iOS once the SDK is initialized:
+Call this on iOS once the SDK is initialized, ideally in the same startup flow:
 
 ```dart
 final voipToken = await sdk.initializeVoip(
