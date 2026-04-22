@@ -98,6 +98,11 @@ await sdk.initialize(
 );
 ```
 
+Initialize it during app startup, not only after opening a settings or test screen.
+If you support changing `baseUrl` or `secret` for QA, persist the last working
+values and bootstrap with them on the next launch so closed-state accept actions
+can still reach your call flow.
+
 Register the current device:
 
 ```dart
@@ -168,9 +173,9 @@ SDK usage:
 See the example flow in [example/lib/main.dart](example/lib/main.dart).
 
 The example shows:
-- SDK initialization
+- startup SDK initialization from the last saved config
 - Android background FCM handling
-- optional VoIP initialization
+- startup VoIP initialization on iOS
 - token registration
 - trigger by username or token
 - optional Firestore adapter usage
