@@ -81,6 +81,10 @@ await sdk.initializeVoip(
 );
 ```
 
+Run this startup flow as early as possible in your app lifecycle. If you delay
+it behind a manual screen, a CallKit accept action can relaunch the app without
+your Dart-side navigation being ready yet.
+
 ## Token Registration
 
 For iOS, register the current push device. The SDK fetches the current FCM token and can include the VoIP token when available:
