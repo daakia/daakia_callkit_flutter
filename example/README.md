@@ -78,8 +78,13 @@ If you change identifiers, make sure they stay consistent across:
 
 For the first successful run, keep the scope small:
 - initialize Firebase
-- initialize the SDK
+- let the app auto-initialize the SDK from the saved config
 - fetch and register the current push token
 - test one incoming call
 
 After that, add VoIP, Firestore, or call joining flows as needed.
+
+The example app now persists the last initialized `baseUrl` and `secret`, then
+boots the SDK from those saved values on startup. That keeps closed-state accept
+navigation working while still allowing you to change credentials in the UI and
+reinitialize for testing.
